@@ -336,4 +336,4 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
-print("多技能脚本已加载（UI缩小 + 拖动修复）")
+print("多技能脚本已加载（UI缩小 + 拖动修复）") 
