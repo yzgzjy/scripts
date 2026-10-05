@@ -1,4 +1,4 @@
--- 多技能自动攻击（双列表折叠版 - 紧凑）
+-- 多技能自动攻击（独立技能新增 FarmerGB2）
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -25,7 +25,9 @@ local specialSkills = {
         name = "FarmerGB",
         enabled = false,
         speed = 0.1,
-        func = function() AttackEvent:FireServer("FarmerGB") end
+        func = function()
+            AttackEvent:FireServer("FarmerGB")
+        end
     },
     {
         name = "AntiErrorGB",
@@ -33,6 +35,14 @@ local specialSkills = {
         speed = 0.1,
         func = function()
             AttackEvent:FireServer("AntiErrorGB", Vector3.new(131.50534057617188, 128.61033630371094, -630.021728515625))
+        end
+    },
+    {
+        name = "FarmerGB2",
+        enabled = false,
+        speed = 0.1,
+        func = function()
+            AttackEvent:FireServer("FarmerGB2", Vector3.new(131.50534057617188, 128.61033630371094, -630.021728515625))
         end
     }
 }
@@ -129,7 +139,7 @@ applySpeedBtn.Font = Enum.Font.Gotham
 applySpeedBtn.Parent = mainFrame
 Instance.new("UICorner", applySpeedBtn).CornerRadius = UDim.new(0, 5)
 
--- 普通技能折叠按钮
+-- 普通技能折叠
 local normalBtn = Instance.new("TextButton")
 normalBtn.Size = UDim2.new(0.9, 0, 0, 26)
 normalBtn.Position = UDim2.new(0.05, 0, 0, 70)
@@ -172,12 +182,12 @@ for i, skill in ipairs(normalSkills) do
 end
 normalFrame.CanvasSize = UDim2.new(0, 0, 0, #normalSkills * 24 + 6)
 
--- 独立技能折叠按钮
+-- 独立技能折叠
 local specialBtn = Instance.new("TextButton")
 specialBtn.Size = UDim2.new(0.9, 0, 0, 26)
 specialBtn.Position = UDim2.new(0.05, 0, 0, 105)
 specialBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-specialBtn.Text = "▼ 独立技能 (Farmer/Anti/Mad)"
+specialBtn.Text = "▼ 独立技能"
 specialBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 specialBtn.TextSize = 12
 specialBtn.Font = Enum.Font.Gotham
@@ -193,84 +203,55 @@ specialFrame.Visible = false
 specialFrame.Parent = mainFrame
 Instance.new("UICorner", specialFrame).CornerRadius = UDim.new(0, 5)
 
--- 独立技能内容
+-- 创建独立技能内容
 local function createSpecialContent()
     specialFrame:ClearAllChildren()
     Instance.new("UICorner", specialFrame).CornerRadius = UDim.new(0, 5)
 
     local y = 6
 
-    -- FarmerGB
-    local fBtn = Instance.new("TextButton")
-    fBtn.Size = UDim2.new(0.55, 0, 0, 24)
-    fBtn.Position = UDim2.new(0.03, 0, 0, y)
-    fBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
-    fBtn.Text = "[关] FarmerGB"
-    fBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    fBtn.TextSize = 11
-    fBtn.Font = Enum.Font.Gotham
-    fBtn.Parent = specialFrame
-    Instance.new("UICorner", fBtn).CornerRadius = UDim.new(0, 4)
+    for i, skill in ipairs(specialSkills) do
+        local s = skill
 
-    local fSpeed = Instance.new("TextBox")
-    fSpeed.Size = UDim2.new(0.35, 0, 0, 24)
-    fSpeed.Position = UDim2.new(0.62, 0, 0, y)
-    fSpeed.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-    fSpeed.Text = "0.1"
-    fSpeed.TextColor3 = Color3.fromRGB(255, 255, 255)
-    fSpeed.TextSize = 11
-    fSpeed.Font = Enum.Font.Gotham
-    fSpeed.Parent = specialFrame
-    Instance.new("UICorner", fSpeed).CornerRadius = UDim.new(0, 4)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0.55, 0, 0, 24)
+        btn.Position = UDim2.new(0.03, 0, 0, y)
+        btn.BackgroundColor3 = s.enabled and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
+        btn.Text = (s.enabled and "[开] " or "[关] ") .. s.name
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.TextSize = 11
+        btn.Font = Enum.Font.Gotham
+        btn.Parent = specialFrame
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
 
-    fBtn.MouseButton1Click:Connect(function()
-        specialSkills[1].enabled = not specialSkills[1].enabled
-        fBtn.BackgroundColor3 = specialSkills[1].enabled and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
-        fBtn.Text = (specialSkills[1].enabled and "[开] " or "[关] ") .. "FarmerGB"
-    end)
-    fSpeed.FocusLost:Connect(function()
-        local n = tonumber(fSpeed.Text)
-        if n and n > 0 then specialSkills[1].speed = n end
-    end)
+        local speedBox = Instance.new("TextBox")
+        speedBox.Size = UDim2.new(0.35, 0, 0, 24)
+        speedBox.Position = UDim2.new(0.62, 0, 0, y)
+        speedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+        speedBox.Text = tostring(s.speed)
+        speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+        speedBox.TextSize = 11
+        speedBox.Font = Enum.Font.Gotham
+        speedBox.Parent = specialFrame
+        Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0, 4)
 
-    y = y + 30
+        btn.MouseButton1Click:Connect(function()
+            s.enabled = not s.enabled
+            btn.BackgroundColor3 = s.enabled and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
+            btn.Text = (s.enabled and "[开] " or "[关] ") .. s.name
+        end)
 
-    -- AntiErrorGB
-    local aBtn = Instance.new("TextButton")
-    aBtn.Size = UDim2.new(0.55, 0, 0, 24)
-    aBtn.Position = UDim2.new(0.03, 0, 0, y)
-    aBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
-    aBtn.Text = "[关] AntiErrorGB"
-    aBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    aBtn.TextSize = 11
-    aBtn.Font = Enum.Font.Gotham
-    aBtn.Parent = specialFrame
-    Instance.new("UICorner", aBtn).CornerRadius = UDim.new(0, 4)
+        speedBox.FocusLost:Connect(function()
+            local n = tonumber(speedBox.Text)
+            if n and n > 0 then
+                s.speed = n
+            end
+        end)
 
-    local aSpeed = Instance.new("TextBox")
-    aSpeed.Size = UDim2.new(0.35, 0, 0, 24)
-    aSpeed.Position = UDim2.new(0.62, 0, 0, y)
-    aSpeed.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-    aSpeed.Text = "0.1"
-    aSpeed.TextColor3 = Color3.fromRGB(255, 255, 255)
-    aSpeed.TextSize = 11
-    aSpeed.Font = Enum.Font.Gotham
-    aSpeed.Parent = specialFrame
-    Instance.new("UICorner", aSpeed).CornerRadius = UDim.new(0, 4)
+        y = y + 30
+    end
 
-    aBtn.MouseButton1Click:Connect(function()
-        specialSkills[2].enabled = not specialSkills[2].enabled
-        aBtn.BackgroundColor3 = specialSkills[2].enabled and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
-        aBtn.Text = (specialSkills[2].enabled and "[开] " or "[关] ") .. "AntiErrorGB"
-    end)
-    aSpeed.FocusLost:Connect(function()
-        local n = tonumber(aSpeed.Text)
-        if n and n > 0 then specialSkills[2].speed = n end
-    end)
-
-    y = y + 30
-
-    -- MadBlaster 模式
+    -- MadBlaster
     local modeLabel = Instance.new("TextLabel")
     modeLabel.Size = UDim2.new(0.9, 0, 0, 18)
     modeLabel.Position = UDim2.new(0.05, 0, 0, y)
@@ -284,10 +265,10 @@ local function createSpecialContent()
 
     y = y + 20
 
-    local function makeModeBtn(text, mode, x)
+    local function makeModeBtn(text, mode, xScale)
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(0.28, 0, 0, 22)
-        btn.Position = UDim2.new(x, 0, 0, y)
+        btn.Position = UDim2.new(xScale, 0, 0, y)
         btn.BackgroundColor3 = madBlaster.mode == mode and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
         btn.Text = text
         btn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -295,9 +276,10 @@ local function createSpecialContent()
         btn.Font = Enum.Font.Gotham
         btn.Parent = specialFrame
         Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+
         btn.MouseButton1Click:Connect(function()
             madBlaster.mode = mode
-            createSpecialContent() -- 刷新颜色
+            createSpecialContent()
         end)
     end
 
@@ -333,6 +315,7 @@ local function createSpecialContent()
         madBlaster.enabled = not madBlaster.enabled
         createSpecialContent()
     end)
+
     mSpeed.FocusLost:Connect(function()
         local n = tonumber(mSpeed.Text)
         if n and n > 0 then madBlaster.speed = n end
@@ -352,15 +335,18 @@ local function createSpecialContent()
     Instance.new("UICorner", onceBtn).CornerRadius = UDim.new(0, 4)
 
     onceBtn.MouseButton1Click:Connect(function()
-        -- 触发一次
-        local list = Workspace:FindFirstChild("SpawnedSans") and Workspace.SpawnedSans:GetChildren() or {}
+        local folder = Workspace:FindFirstChild("SpawnedSans")
+        if not folder then return end
+        local list = folder:GetChildren()
         if #list == 0 then return end
+
         local function getPos(inst)
             if inst:IsA("Model") then return inst:GetPivot().Position end
             if inst:IsA("BasePart") then return inst.Position end
             local p = inst:FindFirstChildWhichIsA("BasePart", true)
             return p and p.Position
         end
+
         if madBlaster.mode == "first" then
             AttackEvent:FireServer("MadBlaster", getPos(list[1]))
         elseif madBlaster.mode == "random" then
@@ -392,13 +378,11 @@ local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(0.9, 0, 0, 30)
 statusLabel.Position = UDim2.new(0.05, 0, 0, 180)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "点击上方按钮展开列表"
+statusLabel.Text = "已添加 FarmerGB2"
 statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 statusLabel.TextSize = 11
 statusLabel.Font = Enum.Font.Gotham
 statusLabel.Parent = mainFrame
-
-local originalSize = mainFrame.Size
 
 -- ===================== 布局更新 =====================
 local function updateLayout()
@@ -423,14 +407,14 @@ local function updateLayout()
 
     if specialOpen then
         specialFrame.Position = UDim2.new(0.05, 0, 0, y)
-        specialFrame.Size = UDim2.new(0.9, 0, 0, 160)
+        specialFrame.Size = UDim2.new(0.9, 0, 0, 190)
         specialFrame.Visible = true
         specialBtn.Text = "▲ 独立技能"
-        y = y + 165
+        y = y + 195
     else
         specialFrame.Size = UDim2.new(0.9, 0, 0, 0)
         specialFrame.Visible = false
-        specialBtn.Text = "▼ 独立技能 (Farmer/Anti/Mad)"
+        specialBtn.Text = "▼ 独立技能"
     end
 
     toggleBtn.Position = UDim2.new(0.05, 0, 0, y)
@@ -462,6 +446,7 @@ toggleBtn.MouseButton1Click:Connect(function()
         toggleBtn.Text = "状态：运行中"
         toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
 
+        -- 普通技能循环
         task.spawn(function()
             while isRunning do
                 for _, skill in ipairs(normalSkills) do
@@ -471,6 +456,7 @@ toggleBtn.MouseButton1Click:Connect(function()
             end
         end)
 
+        -- 独立技能循环
         task.spawn(function()
             while isRunning do
                 for _, skill in ipairs(specialSkills) do
@@ -483,10 +469,12 @@ toggleBtn.MouseButton1Click:Connect(function()
             end
         end)
 
+        -- MadBlaster 循环
         task.spawn(function()
             while isRunning do
                 if madBlaster.enabled then
-                    local list = Workspace:FindFirstChild("SpawnedSans") and Workspace.SpawnedSans:GetChildren() or {}
+                    local folder = Workspace:FindFirstChild("SpawnedSans")
+                    local list = folder and folder:GetChildren() or {}
                     if #list > 0 then
                         local function getPos(inst)
                             if inst:IsA("Model") then return inst:GetPivot().Position end
@@ -494,10 +482,11 @@ toggleBtn.MouseButton1Click:Connect(function()
                             local p = inst:FindFirstChildWhichIsA("BasePart", true)
                             return p and p.Position
                         end
+
                         if madBlaster.mode == "first" then
                             AttackEvent:FireServer("MadBlaster", getPos(list[1]))
                         elseif madBlaster.mode == "random" then
-                            AttackEvent:FireServer("MadBlaster", getPos(list[math.random(1,#list)]))
+                            AttackEvent:FireServer("MadBlaster", getPos(list[math.random(1, #list)]))
                         else
                             for _, inst in ipairs(list) do
                                 local pos = getPos(inst)
@@ -558,4 +547,4 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 updateLayout()
-print("紧凑双列表版已加载")
+print("脚本已加载：独立技能已添加 FarmerGB2")
