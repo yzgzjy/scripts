@@ -1,4 +1,4 @@
--- 多技能自动攻击（MadBlaster 独立 + 对 SpawnedSans 所有实例）
+-- 多技能自动攻击（修复最小化 + MadBlaster 双模式）
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9,7 +9,6 @@ local player = Players.LocalPlayer
 local AttackEvent = ReplicatedStorage:WaitForChild("AttackEvent")
 local SkillRemote = ReplicatedStorage:WaitForChild("SkillRemote")
 
--- 普通技能（共享速率）
 local skills = {
     {name = "BoneThrow", enabled = false, func = function() AttackEvent:FireServer("BoneThrow") end},
     {name = "dash_attack2", enabled = false, func = function() SkillRemote:FireServer("dash_attack2") end},
@@ -20,13 +19,16 @@ local skills = {
     {name = "BoneWall (Normal)", enabled = false, func = function() AttackEvent:FireServer("BoneWall", "Normal") end}
 }
 
--- 独立技能
 local farmerGB = {enabled = false, speed = 0.1}
-local madBlaster = {enabled = false, speed = 0.15}
+local madBlaster = {
+    enabled = false,          -- 循环攻击第一个
+    speed = 0.15
+}
 
 local isRunning = false
 local loopSpeed = 0.1
 local dropdownOpen = false
+local isMinimized = false
 
 -- ===================== UI =====================
 local screenGui = Instance.new("ScreenGui")
@@ -36,8 +38,8 @@ screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 250, 0, 340)
-mainFrame.Position = UDim2.new(0.5, -125, 0.55, 0)
+mainFrame.Size = UDim2.new(0, 260, 0, 380)
+mainFrame.Position = UDim2.new(0.5, -130, 0.5, -190)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
@@ -52,7 +54,7 @@ titleBar.Parent = mainFrame
 Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 10)
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -65, 1, 0)
+title.Size = UDim2.new(1, -70, 1, 0)
 title.Position = UDim2.new(0, 8, 0, 0)
 title.BackgroundTransparency = 1
 title.Text = "多技能自动攻击"
@@ -85,66 +87,56 @@ closeBtn.Parent = titleBar
 Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 5)
 
 -- 普通技能速率
-local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(0.9, 0, 0, 16)
-speedLabel.Position = UDim2.new(0.05, 0, 0, 36)
-speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "普通技能速率："
-speedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-speedLabel.TextSize = 12
-speedLabel.Font = Enum.Font.Gotham
-speedLabel.TextXAlignment = Enum.TextXAlignment.Left
-speedLabel.Parent = mainFrame
-
 local speedBox = Instance.new("TextBox")
 speedBox.Size = UDim2.new(0.4, 0, 0, 24)
-speedBox.Position = UDim2.new(0.05, 0, 0, 54)
+speedBox.Position = UDim2.new(0.05, 0, 0, 40)
 speedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
 speedBox.Text = "0.1"
+speedBox.PlaceholderText = "普通速率"
 speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-speedBox.TextSize = 13
-speedBox.Font = Enum.Font.GothamBold
+speedBox.TextSize = 12
+speedBox.Font = Enum.Font.Gotham
 speedBox.Parent = mainFrame
 Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0, 5)
 
 local applySpeedBtn = Instance.new("TextButton")
 applySpeedBtn.Size = UDim2.new(0.35, 0, 0, 24)
-applySpeedBtn.Position = UDim2.new(0.5, 0, 0, 54)
+applySpeedBtn.Position = UDim2.new(0.5, 0, 0, 40)
 applySpeedBtn.BackgroundColor3 = Color3.fromRGB(70, 100, 160)
-applySpeedBtn.Text = "应用"
+applySpeedBtn.Text = "应用速率"
 applySpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 applySpeedBtn.TextSize = 12
 applySpeedBtn.Font = Enum.Font.Gotham
 applySpeedBtn.Parent = mainFrame
 Instance.new("UICorner", applySpeedBtn).CornerRadius = UDim.new(0, 5)
 
--- 下拉按钮
+-- 下拉
 local dropdownBtn = Instance.new("TextButton")
-dropdownBtn.Size = UDim2.new(0.9, 0, 0, 28)
-dropdownBtn.Position = UDim2.new(0.05, 0, 0, 88)
+dropdownBtn.Size = UDim2.new(0.9, 0, 0, 26)
+dropdownBtn.Position = UDim2.new(0.05, 0, 0, 72)
 dropdownBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-dropdownBtn.Text = "▼ 选择普通技能"
+dropdownBtn.Text = "▼ 普通技能列表"
 dropdownBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 dropdownBtn.TextSize = 12
 dropdownBtn.Font = Enum.Font.Gotham
 dropdownBtn.Parent = mainFrame
-Instance.new("UICorner", dropdownBtn).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", dropdownBtn).CornerRadius = UDim.new(0, 5)
 
 local dropdownFrame = Instance.new("ScrollingFrame")
 dropdownFrame.Size = UDim2.new(0.9, 0, 0, 0)
-dropdownFrame.Position = UDim2.new(0.05, 0, 0, 118)
+dropdownFrame.Position = UDim2.new(0.05, 0, 0, 100)
 dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 dropdownFrame.BorderSizePixel = 0
 dropdownFrame.ScrollBarThickness = 3
 dropdownFrame.Visible = false
 dropdownFrame.Parent = mainFrame
-Instance.new("UICorner", dropdownFrame).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", dropdownFrame).CornerRadius = UDim.new(0, 5)
 
 for i, skill in ipairs(skills) do
     local s = skill
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -8, 0, 24)
-    btn.Position = UDim2.new(0, 4, 0, (i-1)*26 + 4)
+    btn.Size = UDim2.new(1, -6, 0, 22)
+    btn.Position = UDim2.new(0, 3, 0, (i-1)*24 + 3)
     btn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
     btn.Text = "[关] " .. s.name
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -159,96 +151,69 @@ for i, skill in ipairs(skills) do
         btn.Text = (s.enabled and "[开] " or "[关] ") .. s.name
     end)
 end
-dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, #skills * 26 + 8)
+dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, #skills * 24 + 6)
 
 -- FarmerGB
-local farmerFrame = Instance.new("Frame")
-farmerFrame.Size = UDim2.new(0.9, 0, 0, 52)
-farmerFrame.Position = UDim2.new(0.05, 0, 0, 125)
-farmerFrame.BackgroundColor3 = Color3.fromRGB(45, 40, 55)
-farmerFrame.BorderSizePixel = 0
-farmerFrame.Parent = mainFrame
-Instance.new("UICorner", farmerFrame).CornerRadius = UDim.new(0, 6)
-
 local farmerBtn = Instance.new("TextButton")
-farmerBtn.Size = UDim2.new(0.42, 0, 0, 24)
-farmerBtn.Position = UDim2.new(0.04, 0, 0, 14)
+farmerBtn.Size = UDim2.new(0.42, 0, 0, 26)
+farmerBtn.Position = UDim2.new(0.05, 0, 0, 110)
 farmerBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
 farmerBtn.Text = "[关] FarmerGB"
 farmerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 farmerBtn.TextSize = 11
 farmerBtn.Font = Enum.Font.Gotham
-farmerBtn.Parent = farmerFrame
-Instance.new("UICorner", farmerBtn).CornerRadius = UDim.new(0, 4)
+farmerBtn.Parent = mainFrame
+Instance.new("UICorner", farmerBtn).CornerRadius = UDim.new(0, 5)
 
 local farmerSpeedBox = Instance.new("TextBox")
-farmerSpeedBox.Size = UDim2.new(0.25, 0, 0, 24)
-farmerSpeedBox.Position = UDim2.new(0.5, 0, 0, 14)
+farmerSpeedBox.Size = UDim2.new(0.2, 0, 0, 26)
+farmerSpeedBox.Position = UDim2.new(0.5, 0, 0, 110)
 farmerSpeedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
 farmerSpeedBox.Text = "0.1"
 farmerSpeedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 farmerSpeedBox.TextSize = 11
-farmerSpeedBox.Font = Enum.Font.GothamBold
-farmerSpeedBox.Parent = farmerFrame
-Instance.new("UICorner", farmerSpeedBox).CornerRadius = UDim.new(0, 4)
+farmerSpeedBox.Font = Enum.Font.Gotham
+farmerSpeedBox.Parent = mainFrame
+Instance.new("UICorner", farmerSpeedBox).CornerRadius = UDim.new(0, 5)
 
-local farmerApplyBtn = Instance.new("TextButton")
-farmerApplyBtn.Size = UDim2.new(0.2, 0, 0, 24)
-farmerApplyBtn.Position = UDim2.new(0.77, 0, 0, 14)
-farmerApplyBtn.BackgroundColor3 = Color3.fromRGB(100, 70, 140)
-farmerApplyBtn.Text = "应用"
-farmerApplyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-farmerApplyBtn.TextSize = 11
-farmerApplyBtn.Font = Enum.Font.Gotham
-farmerApplyBtn.Parent = farmerFrame
-Instance.new("UICorner", farmerApplyBtn).CornerRadius = UDim.new(0, 4)
-
--- MadBlaster 独立区域
-local madFrame = Instance.new("Frame")
-madFrame.Size = UDim2.new(0.9, 0, 0, 52)
-madFrame.Position = UDim2.new(0.05, 0, 0, 185)
-madFrame.BackgroundColor3 = Color3.fromRGB(55, 40, 40)
-madFrame.BorderSizePixel = 0
-madFrame.Parent = mainFrame
-Instance.new("UICorner", madFrame).CornerRadius = UDim.new(0, 6)
-
-local madBtn = Instance.new("TextButton")
-madBtn.Size = UDim2.new(0.42, 0, 0, 24)
-madBtn.Position = UDim2.new(0.04, 0, 0, 14)
-madBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
-madBtn.Text = "[关] MadBlaster"
-madBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-madBtn.TextSize = 11
-madBtn.Font = Enum.Font.Gotham
-madBtn.Parent = madFrame
-Instance.new("UICorner", madBtn).CornerRadius = UDim.new(0, 4)
+-- MadBlaster 区域
+local madLoopBtn = Instance.new("TextButton")
+madLoopBtn.Size = UDim2.new(0.42, 0, 0, 26)
+madLoopBtn.Position = UDim2.new(0.05, 0, 0, 145)
+madLoopBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
+madLoopBtn.Text = "[关] 循环打第一个"
+madLoopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+madLoopBtn.TextSize = 11
+madLoopBtn.Font = Enum.Font.Gotham
+madLoopBtn.Parent = mainFrame
+Instance.new("UICorner", madLoopBtn).CornerRadius = UDim.new(0, 5)
 
 local madSpeedBox = Instance.new("TextBox")
-madSpeedBox.Size = UDim2.new(0.25, 0, 0, 24)
-madSpeedBox.Position = UDim2.new(0.5, 0, 0, 14)
+madSpeedBox.Size = UDim2.new(0.2, 0, 0, 26)
+madSpeedBox.Position = UDim2.new(0.5, 0, 0, 145)
 madSpeedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
 madSpeedBox.Text = "0.15"
 madSpeedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 madSpeedBox.TextSize = 11
-madSpeedBox.Font = Enum.Font.GothamBold
-madSpeedBox.Parent = madFrame
-Instance.new("UICorner", madSpeedBox).CornerRadius = UDim.new(0, 4)
+madSpeedBox.Font = Enum.Font.Gotham
+madSpeedBox.Parent = mainFrame
+Instance.new("UICorner", madSpeedBox).CornerRadius = UDim.new(0, 5)
 
-local madApplyBtn = Instance.new("TextButton")
-madApplyBtn.Size = UDim2.new(0.2, 0, 0, 24)
-madApplyBtn.Position = UDim2.new(0.77, 0, 0, 14)
-madApplyBtn.BackgroundColor3 = Color3.fromRGB(140, 70, 70)
-madApplyBtn.Text = "应用"
-madApplyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-madApplyBtn.TextSize = 11
-madApplyBtn.Font = Enum.Font.Gotham
-madApplyBtn.Parent = madFrame
-Instance.new("UICorner", madApplyBtn).CornerRadius = UDim.new(0, 4)
+local madOnceBtn = Instance.new("TextButton")
+madOnceBtn.Size = UDim2.new(0.9, 0, 0, 28)
+madOnceBtn.Position = UDim2.new(0.05, 0, 0, 180)
+madOnceBtn.BackgroundColor3 = Color3.fromRGB(120, 60, 60)
+madOnceBtn.Text = "一次性攻击全部 SpawnedSans"
+madOnceBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+madOnceBtn.TextSize = 12
+madOnceBtn.Font = Enum.Font.GothamBold
+madOnceBtn.Parent = mainFrame
+Instance.new("UICorner", madOnceBtn).CornerRadius = UDim.new(0, 5)
 
 -- 总开关
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0.9, 0, 0, 34)
-toggleBtn.Position = UDim2.new(0.05, 0, 0, 250)
+toggleBtn.Position = UDim2.new(0.05, 0, 0, 220)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
 toggleBtn.Text = "状态：已停止"
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -258,58 +223,88 @@ toggleBtn.Parent = mainFrame
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
 
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(0.9, 0, 0, 20)
-statusLabel.Position = UDim2.new(0.05, 0, 0, 295)
+statusLabel.Size = UDim2.new(0.9, 0, 0, 40)
+statusLabel.Position = UDim2.new(0.05, 0, 0, 265)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "MadBlaster 已独立，对SpawnedSans所有实例"
+statusLabel.Text = "循环=只打第一个 | 一次性=攻击全部"
 statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 statusLabel.TextSize = 11
 statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextWrapped = true
 statusLabel.Parent = mainFrame
 
--- ===================== 逻辑 =====================
+local originalSize = mainFrame.Size
+local originalContent = {}  -- 用于最小化恢复
+
+-- ===================== 功能函数 =====================
 local function getPosition(inst)
+    if not inst then return nil end
     if inst:IsA("Model") then
         return inst:GetPivot().Position
     elseif inst:IsA("BasePart") then
         return inst.Position
     else
-        local part = inst:FindFirstChildWhichIsA("BasePart")
-        if part then return part.Position end
+        local part = inst:FindFirstChildWhichIsA("BasePart", true)
+        return part and part.Position
     end
-    return nil
 end
 
-local function updateDropdown()
+local function fireMadBlaster(pos)
+    if pos then
+        pcall(function()
+            AttackEvent:FireServer("MadBlaster", pos)
+        end)
+    end
+end
+
+local function attackAllOnce()
+    local folder = Workspace:FindFirstChild("SpawnedSans")
+    if not folder then
+        statusLabel.Text = "未找到 SpawnedSans"
+        return
+    end
+    local count = 0
+    for _, inst in ipairs(folder:GetChildren()) do
+        local pos = getPosition(inst)
+        if pos then
+            fireMadBlaster(pos)
+            count += 1
+        end
+    end
+    statusLabel.Text = "已一次性攻击 " .. count .. " 个实例"
+end
+
+-- ===================== 事件 =====================
+dropdownBtn.MouseButton1Click:Connect(function()
+    dropdownOpen = not dropdownOpen
     if dropdownOpen then
-        dropdownFrame.Size = UDim2.new(0.9, 0, 0, 120)
+        dropdownFrame.Size = UDim2.new(0.9, 0, 0, 110)
         dropdownFrame.Visible = true
-        dropdownBtn.Text = "▲ 收起技能列表"
-        farmerFrame.Position = UDim2.new(0.05, 0, 0, 245)
-        madFrame.Position = UDim2.new(0.05, 0, 0, 305)
-        toggleBtn.Position = UDim2.new(0.05, 0, 0, 370)
-        statusLabel.Position = UDim2.new(0.05, 0, 0, 415)
-        mainFrame.Size = UDim2.new(0, 250, 0, 450)
+        dropdownBtn.Text = "▲ 收起列表"
+        farmerBtn.Position = UDim2.new(0.05, 0, 0, 220)
+        madLoopBtn.Position = UDim2.new(0.05, 0, 0, 255)
+        madSpeedBox.Position = UDim2.new(0.5, 0, 0, 255)
+        madOnceBtn.Position = UDim2.new(0.05, 0, 0, 290)
+        toggleBtn.Position = UDim2.new(0.05, 0, 0, 330)
+        statusLabel.Position = UDim2.new(0.05, 0, 0, 375)
+        mainFrame.Size = UDim2.new(0, 260, 0, 430)
     else
         dropdownFrame.Size = UDim2.new(0.9, 0, 0, 0)
         dropdownFrame.Visible = false
-        dropdownBtn.Text = "▼ 选择普通技能"
-        farmerFrame.Position = UDim2.new(0.05, 0, 0, 125)
-        madFrame.Position = UDim2.new(0.05, 0, 0, 185)
-        toggleBtn.Position = UDim2.new(0.05, 0, 0, 250)
-        statusLabel.Position = UDim2.new(0.05, 0, 0, 295)
-        mainFrame.Size = UDim2.new(0, 250, 0, 340)
+        dropdownBtn.Text = "▼ 普通技能列表"
+        farmerBtn.Position = UDim2.new(0.05, 0, 0, 110)
+        madLoopBtn.Position = UDim2.new(0.05, 0, 0, 145)
+        madSpeedBox.Position = UDim2.new(0.5, 0, 0, 145)
+        madOnceBtn.Position = UDim2.new(0.05, 0, 0, 180)
+        toggleBtn.Position = UDim2.new(0.05, 0, 0, 220)
+        statusLabel.Position = UDim2.new(0.05, 0, 0, 265)
+        mainFrame.Size = originalSize
     end
-end
-
-dropdownBtn.MouseButton1Click:Connect(function()
-    dropdownOpen = not dropdownOpen
-    updateDropdown()
 end)
 
 applySpeedBtn.MouseButton1Click:Connect(function()
-    local num = tonumber(speedBox.Text)
-    if num and num > 0 then loopSpeed = num end
+    local n = tonumber(speedBox.Text)
+    if n and n > 0 then loopSpeed = n end
 end)
 
 farmerBtn.MouseButton1Click:Connect(function()
@@ -318,29 +313,21 @@ farmerBtn.MouseButton1Click:Connect(function()
     farmerBtn.Text = (farmerGB.enabled and "[开] " or "[关] ") .. "FarmerGB"
 end)
 
-farmerApplyBtn.MouseButton1Click:Connect(function()
-    local num = tonumber(farmerSpeedBox.Text)
-    if num and num > 0 then farmerGB.speed = num end
-end)
-
-madBtn.MouseButton1Click:Connect(function()
+madLoopBtn.MouseButton1Click:Connect(function()
     madBlaster.enabled = not madBlaster.enabled
-    madBtn.BackgroundColor3 = madBlaster.enabled and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
-    madBtn.Text = (madBlaster.enabled and "[开] " or "[关] ") .. "MadBlaster"
+    madLoopBtn.BackgroundColor3 = madBlaster.enabled and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
+    madLoopBtn.Text = (madBlaster.enabled and "[开] " or "[关] ") .. "循环打第一个"
 end)
 
-madApplyBtn.MouseButton1Click:Connect(function()
-    local num = tonumber(madSpeedBox.Text)
-    if num and num > 0 then madBlaster.speed = num end
-end)
+madOnceBtn.MouseButton1Click:Connect(attackAllOnce)
 
-local function toggle()
+-- 总开关
+toggleBtn.MouseButton1Click:Connect(function()
     isRunning = not isRunning
     if isRunning then
         toggleBtn.Text = "状态：运行中"
         toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
 
-        -- 普通技能
         task.spawn(function()
             while isRunning do
                 for _, skill in ipairs(skills) do
@@ -350,7 +337,6 @@ local function toggle()
             end
         end)
 
-        -- FarmerGB
         task.spawn(function()
             while isRunning do
                 if farmerGB.enabled then
@@ -360,20 +346,14 @@ local function toggle()
             end
         end)
 
-        -- MadBlaster（对 SpawnedSans 下每个实例）
         task.spawn(function()
             while isRunning do
                 if madBlaster.enabled then
                     local folder = Workspace:FindFirstChild("SpawnedSans")
                     if folder then
-                        for _, inst in ipairs(folder:GetChildren()) do
-                            local pos = getPosition(inst)
-                            if pos then
-                                pcall(function()
-                                    AttackEvent:FireServer("MadBlaster", pos)
-                                end)
-                            end
-                        end
+                        local first = folder:GetChildren()[1]
+                        local pos = getPosition(first)
+                        fireMadBlaster(pos)
                     end
                 end
                 task.wait(madBlaster.speed)
@@ -383,9 +363,30 @@ local function toggle()
         toggleBtn.Text = "状态：已停止"
         toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
     end
-end
+end)
 
-toggleBtn.MouseButton1Click:Connect(toggle)
+-- 最小化（已修复）
+minimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        mainFrame.Size = UDim2.new(0, 260, 0, 30)
+        for _, child in ipairs(mainFrame:GetChildren()) do
+            if child ~= titleBar and child:IsA("GuiObject") then
+                child.Visible = false
+            end
+        end
+        minimizeBtn.Text = "+"
+    else
+        mainFrame.Size = originalSize
+        for _, child in ipairs(mainFrame:GetChildren()) do
+            if child:IsA("GuiObject") then
+                child.Visible = true
+            end
+        end
+        dropdownFrame.Visible = dropdownOpen
+        minimizeBtn.Text = "—"
+    end
+end)
 
 closeBtn.MouseButton1Click:Connect(function()
     isRunning = false
@@ -409,4 +410,4 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
-print("脚本已加载：MadBlaster 独立速率，并对 SpawnedSans 所有实例发动")
+print("脚本已加载：最小化已修复 + MadBlaster 支持循环第一个 / 一次性全部")
