@@ -1,4 +1,4 @@
--- 多技能自动攻击整合脚本（新增 MadBlaster）
+-- 多技能自动攻击（下拉式 + 紧凑UI）
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,42 +8,21 @@ local player = Players.LocalPlayer
 local AttackEvent = ReplicatedStorage:WaitForChild("AttackEvent")
 local SkillRemote = ReplicatedStorage:WaitForChild("SkillRemote")
 
--- ===================== 普通技能配置（共享速率） =====================
 local skills = {
-    {name = "BoneThrow", enabled = false, func = function()
-        AttackEvent:FireServer("BoneThrow")
-    end},
-    {name = "dash_attack2", enabled = false, func = function()
-        SkillRemote:FireServer("dash_attack2")
-    end},
-    {name = "Spinbone", enabled = false, func = function()
-        AttackEvent:FireServer("Spinbone", "Normal")
-    end},
-    {name = "KillerKnife", enabled = false, func = function()
-        AttackEvent:FireServer("KillerKnife", Vector3.new(25.597873687744, 164.59527587891, -300.49691772461))
-    end},
-    {name = "HorrorAxe", enabled = false, func = function()
-        AttackEvent:FireServer("HorrorAxe", false, 0.084241390228271)
-    end},
-    {name = "BoneWall (R_Skill)", enabled = false, func = function()
-        AttackEvent:FireServer("BoneWall", "R_Skill")
-    end},
-    {name = "BoneWall (Normal)", enabled = false, func = function()
-        AttackEvent:FireServer("BoneWall", "Normal")
-    end},
-    {name = "MadBlaster", enabled = false, func = function()
-        AttackEvent:FireServer("MadBlaster", Vector3.new(-228.47274780273438, -446.84695434570312, -1114.02685546875))
-    end}
+    {name = "BoneThrow", enabled = false, func = function() AttackEvent:FireServer("BoneThrow") end},
+    {name = "dash_attack2", enabled = false, func = function() SkillRemote:FireServer("dash_attack2") end},
+    {name = "Spinbone", enabled = false, func = function() AttackEvent:FireServer("Spinbone", "Normal") end},
+    {name = "KillerKnife", enabled = false, func = function() AttackEvent:FireServer("KillerKnife", Vector3.new(25.597873687744, 164.59527587891, -300.49691772461)) end},
+    {name = "HorrorAxe", enabled = false, func = function() AttackEvent:FireServer("HorrorAxe", false, 0.084241390228271) end},
+    {name = "BoneWall (R_Skill)", enabled = false, func = function() AttackEvent:FireServer("BoneWall", "R_Skill") end},
+    {name = "BoneWall (Normal)", enabled = false, func = function() AttackEvent:FireServer("BoneWall", "Normal") end},
+    {name = "MadBlaster", enabled = false, func = function() AttackEvent:FireServer("MadBlaster", Vector3.new(-228.47274780273438, -446.84695434570312, -1114.02685546875)) end}
 }
 
--- ===================== FarmerGB 独立配置 =====================
-local farmerGB = {
-    enabled = false,
-    speed = 0.1
-}
-
+local farmerGB = {enabled = false, speed = 0.1}
 local isRunning = false
 local loopSpeed = 0.1
+local dropdownOpen = false
 
 -- ===================== UI =====================
 local screenGui = Instance.new("ScreenGui")
@@ -53,8 +32,8 @@ screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 260, 0, 450)
-mainFrame.Position = UDim2.new(0.5, -130, 0.5, -225)
+mainFrame.Size = UDim2.new(0, 250, 0, 280)
+mainFrame.Position = UDim2.new(0.5, -125, 0.6, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
@@ -114,7 +93,7 @@ speedLabel.TextXAlignment = Enum.TextXAlignment.Left
 speedLabel.Parent = mainFrame
 
 local speedBox = Instance.new("TextBox")
-speedBox.Size = UDim2.new(0.38, 0, 0, 24)
+speedBox.Size = UDim2.new(0.4, 0, 0, 24)
 speedBox.Position = UDim2.new(0.05, 0, 0, 54)
 speedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
 speedBox.Text = "0.1"
@@ -125,8 +104,8 @@ speedBox.Parent = mainFrame
 Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0, 5)
 
 local applySpeedBtn = Instance.new("TextButton")
-applySpeedBtn.Size = UDim2.new(0.38, 0, 0, 24)
-applySpeedBtn.Position = UDim2.new(0.48, 0, 0, 54)
+applySpeedBtn.Size = UDim2.new(0.35, 0, 0, 24)
+applySpeedBtn.Position = UDim2.new(0.5, 0, 0, 54)
 applySpeedBtn.BackgroundColor3 = Color3.fromRGB(70, 100, 160)
 applySpeedBtn.Text = "应用"
 applySpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -135,29 +114,42 @@ applySpeedBtn.Font = Enum.Font.Gotham
 applySpeedBtn.Parent = mainFrame
 Instance.new("UICorner", applySpeedBtn).CornerRadius = UDim.new(0, 5)
 
--- 技能列表
-local skillsFrame = Instance.new("ScrollingFrame")
-skillsFrame.Size = UDim2.new(0.9, 0, 0, 195)
-skillsFrame.Position = UDim2.new(0.05, 0, 0, 85)
-skillsFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
-skillsFrame.BorderSizePixel = 0
-skillsFrame.ScrollBarThickness = 3
-skillsFrame.CanvasSize = UDim2.new(0, 0, 0, #skills * 28 + 8)
-skillsFrame.Parent = mainFrame
-Instance.new("UICorner", skillsFrame).CornerRadius = UDim.new(0, 6)
+-- 下拉按钮
+local dropdownBtn = Instance.new("TextButton")
+dropdownBtn.Size = UDim2.new(0.9, 0, 0, 28)
+dropdownBtn.Position = UDim2.new(0.05, 0, 0, 88)
+dropdownBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+dropdownBtn.Text = "▼ 选择普通技能（点击展开）"
+dropdownBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+dropdownBtn.TextSize = 12
+dropdownBtn.Font = Enum.Font.Gotham
+dropdownBtn.Parent = mainFrame
+Instance.new("UICorner", dropdownBtn).CornerRadius = UDim.new(0, 6)
+
+-- 下拉列表
+local dropdownFrame = Instance.new("ScrollingFrame")
+dropdownFrame.Size = UDim2.new(0.9, 0, 0, 0)  -- 初始高度0
+dropdownFrame.Position = UDim2.new(0.05, 0, 0, 118)
+dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+dropdownFrame.BorderSizePixel = 0
+dropdownFrame.ScrollBarThickness = 3
+dropdownFrame.Visible = false
+dropdownFrame.Parent = mainFrame
+Instance.new("UICorner", dropdownFrame).CornerRadius = UDim.new(0, 6)
+
+local skillButtons = {}
 
 for i, skill in ipairs(skills) do
     local s = skill
-
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 24)
-    btn.Position = UDim2.new(0, 5, 0, (i-1)*28 + 4)
+    btn.Size = UDim2.new(1, -8, 0, 24)
+    btn.Position = UDim2.new(0, 4, 0, (i-1)*26 + 4)
     btn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
     btn.Text = "[关] " .. s.name
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.TextSize = 11
     btn.Font = Enum.Font.Gotham
-    btn.Parent = skillsFrame
+    btn.Parent = dropdownFrame
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
 
     btn.MouseButton1Click:Connect(function()
@@ -165,12 +157,15 @@ for i, skill in ipairs(skills) do
         btn.BackgroundColor3 = s.enabled and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
         btn.Text = (s.enabled and "[开] " or "[关] ") .. s.name
     end)
+    skillButtons[i] = btn
 end
+
+dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, #skills * 26 + 8)
 
 -- FarmerGB
 local farmerFrame = Instance.new("Frame")
-farmerFrame.Size = UDim2.new(0.9, 0, 0, 62)
-farmerFrame.Position = UDim2.new(0.05, 0, 0, 290)
+farmerFrame.Size = UDim2.new(0.9, 0, 0, 58)
+farmerFrame.Position = UDim2.new(0.05, 0, 0, 125)
 farmerFrame.BackgroundColor3 = Color3.fromRGB(45, 40, 55)
 farmerFrame.BorderSizePixel = 0
 farmerFrame.Parent = mainFrame
@@ -178,7 +173,7 @@ Instance.new("UICorner", farmerFrame).CornerRadius = UDim.new(0, 6)
 
 local farmerTitle = Instance.new("TextLabel")
 farmerTitle.Size = UDim2.new(1, -8, 0, 16)
-farmerTitle.Position = UDim2.new(0, 6, 0, 3)
+farmerTitle.Position = UDim2.new(0, 6, 0, 2)
 farmerTitle.BackgroundTransparency = 1
 farmerTitle.Text = "FarmerGB（独立速率）"
 farmerTitle.TextColor3 = Color3.fromRGB(220, 180, 255)
@@ -189,7 +184,7 @@ farmerTitle.Parent = farmerFrame
 
 local farmerBtn = Instance.new("TextButton")
 farmerBtn.Size = UDim2.new(0.42, 0, 0, 24)
-farmerBtn.Position = UDim2.new(0.04, 0, 0, 24)
+farmerBtn.Position = UDim2.new(0.04, 0, 0, 22)
 farmerBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
 farmerBtn.Text = "[关] FarmerGB"
 farmerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -200,7 +195,7 @@ Instance.new("UICorner", farmerBtn).CornerRadius = UDim.new(0, 4)
 
 local farmerSpeedBox = Instance.new("TextBox")
 farmerSpeedBox.Size = UDim2.new(0.25, 0, 0, 24)
-farmerSpeedBox.Position = UDim2.new(0.5, 0, 0, 24)
+farmerSpeedBox.Position = UDim2.new(0.5, 0, 0, 22)
 farmerSpeedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
 farmerSpeedBox.Text = "0.1"
 farmerSpeedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -211,7 +206,7 @@ Instance.new("UICorner", farmerSpeedBox).CornerRadius = UDim.new(0, 4)
 
 local farmerApplyBtn = Instance.new("TextButton")
 farmerApplyBtn.Size = UDim2.new(0.2, 0, 0, 24)
-farmerApplyBtn.Position = UDim2.new(0.77, 0, 0, 24)
+farmerApplyBtn.Position = UDim2.new(0.77, 0, 0, 22)
 farmerApplyBtn.BackgroundColor3 = Color3.fromRGB(100, 70, 140)
 farmerApplyBtn.Text = "应用"
 farmerApplyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -222,8 +217,8 @@ Instance.new("UICorner", farmerApplyBtn).CornerRadius = UDim.new(0, 4)
 
 -- 总开关
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0.9, 0, 0, 36)
-toggleBtn.Position = UDim2.new(0.05, 0, 0, 365)
+toggleBtn.Size = UDim2.new(0.9, 0, 0, 34)
+toggleBtn.Position = UDim2.new(0.05, 0, 0, 195)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
 toggleBtn.Text = "状态：已停止"
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -233,18 +228,40 @@ toggleBtn.Parent = mainFrame
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
 
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(0.9, 0, 0, 16)
-statusLabel.Position = UDim2.new(0.05, 0, 0, 408)
+statusLabel.Size = UDim2.new(0.9, 0, 0, 18)
+statusLabel.Position = UDim2.new(0.05, 0, 0, 238)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "已添加 MadBlaster"
+statusLabel.Text = "点击上方按钮展开技能列表"
 statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 statusLabel.TextSize = 11
 statusLabel.Font = Enum.Font.Gotham
 statusLabel.Parent = mainFrame
 
 -- ===================== 逻辑 =====================
-local isMinimized = false
-local originalSize = mainFrame.Size
+local function updateDropdown()
+    if dropdownOpen then
+        dropdownFrame.Size = UDim2.new(0.9, 0, 0, 140)
+        dropdownFrame.Visible = true
+        dropdownBtn.Text = "▲ 收起技能列表"
+        farmerFrame.Position = UDim2.new(0.05, 0, 0, 265)
+        toggleBtn.Position = UDim2.new(0.05, 0, 0, 335)
+        statusLabel.Position = UDim2.new(0.05, 0, 0, 378)
+        mainFrame.Size = UDim2.new(0, 250, 0, 410)
+    else
+        dropdownFrame.Size = UDim2.new(0.9, 0, 0, 0)
+        dropdownFrame.Visible = false
+        dropdownBtn.Text = "▼ 选择普通技能（点击展开）"
+        farmerFrame.Position = UDim2.new(0.05, 0, 0, 125)
+        toggleBtn.Position = UDim2.new(0.05, 0, 0, 195)
+        statusLabel.Position = UDim2.new(0.05, 0, 0, 238)
+        mainFrame.Size = UDim2.new(0, 250, 0, 280)
+    end
+end
+
+dropdownBtn.MouseButton1Click:Connect(function()
+    dropdownOpen = not dropdownOpen
+    updateDropdown()
+end)
 
 applySpeedBtn.MouseButton1Click:Connect(function()
     local num = tonumber(speedBox.Text)
@@ -278,9 +295,7 @@ local function toggle()
         task.spawn(function()
             while isRunning do
                 for _, skill in ipairs(skills) do
-                    if skill.enabled then
-                        pcall(skill.func)
-                    end
+                    if skill.enabled then pcall(skill.func) end
                 end
                 task.wait(loopSpeed)
             end
@@ -289,9 +304,7 @@ local function toggle()
         task.spawn(function()
             while isRunning do
                 if farmerGB.enabled then
-                    pcall(function()
-                        AttackEvent:FireServer("FarmerGB")
-                    end)
+                    pcall(function() AttackEvent:FireServer("FarmerGB") end)
                 end
                 task.wait(farmerGB.speed)
             end
@@ -306,46 +319,47 @@ end
 toggleBtn.MouseButton1Click:Connect(toggle)
 
 minimizeBtn.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    if isMinimized then
-        mainFrame.Size = UDim2.new(0, 260, 0, 30)
-        for _, c in pairs(mainFrame:GetChildren()) do
-            if c ~= titleBar and c:IsA("GuiObject") then c.Visible = false end
-        end
-        minimizeBtn.Text = "+"
-    else
-        mainFrame.Size = originalSize
-        for _, c in pairs(mainFrame:GetChildren()) do
-            if c:IsA("GuiObject") then c.Visible = true end
-        end
-        minimizeBtn.Text = "—"
-    end
+    mainFrame.Visible = false
+    -- 简单处理，需要可再加恢复按钮
 end)
 
 closeBtn.MouseButton1Click:Connect(function()
     isRunning = false
-    screenGui.Enabled = false
+    screenGui:Destroy()
 end)
 
--- 拖动支持
-local dragging, dragStart, startPos
+-- 优化后的拖动（支持手机）
+local dragging = false
+local dragInput, dragStart, startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
 titleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = mainFrame.Position
-    end
-end)
-titleBar.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
     end
 end)
 
-print("多技能脚本已加载（新增 MadBlaster）")
+titleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+print("紧凑下拉版多技能脚本已加载")
