@@ -1,4 +1,4 @@
--- 多技能自动攻击整合脚本（修复拖动 + 缩小UI）
+-- 多技能自动攻击整合脚本（新增 MadBlaster）
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,18 +8,40 @@ local player = Players.LocalPlayer
 local AttackEvent = ReplicatedStorage:WaitForChild("AttackEvent")
 local SkillRemote = ReplicatedStorage:WaitForChild("SkillRemote")
 
--- ===================== 普通技能配置 =====================
+-- ===================== 普通技能配置（共享速率） =====================
 local skills = {
-    {name = "BoneThrow", enabled = false, func = function() AttackEvent:FireServer("BoneThrow") end},
-    {name = "dash_attack2", enabled = false, func = function() SkillRemote:FireServer("dash_attack2") end},
-    {name = "Spinbone", enabled = false, func = function() AttackEvent:FireServer("Spinbone", "Normal") end},
-    {name = "KillerKnife", enabled = false, func = function() AttackEvent:FireServer("KillerKnife", Vector3.new(25.597873687744, 164.59527587891, -300.49691772461)) end},
-    {name = "HorrorAxe", enabled = false, func = function() AttackEvent:FireServer("HorrorAxe", false, 0.084241390228271) end},
-    {name = "BoneWall (R_Skill)", enabled = false, func = function() AttackEvent:FireServer("BoneWall", "R_Skill") end},
-    {name = "BoneWall (Normal)", enabled = false, func = function() AttackEvent:FireServer("BoneWall", "Normal") end}
+    {name = "BoneThrow", enabled = false, func = function()
+        AttackEvent:FireServer("BoneThrow")
+    end},
+    {name = "dash_attack2", enabled = false, func = function()
+        SkillRemote:FireServer("dash_attack2")
+    end},
+    {name = "Spinbone", enabled = false, func = function()
+        AttackEvent:FireServer("Spinbone", "Normal")
+    end},
+    {name = "KillerKnife", enabled = false, func = function()
+        AttackEvent:FireServer("KillerKnife", Vector3.new(25.597873687744, 164.59527587891, -300.49691772461))
+    end},
+    {name = "HorrorAxe", enabled = false, func = function()
+        AttackEvent:FireServer("HorrorAxe", false, 0.084241390228271)
+    end},
+    {name = "BoneWall (R_Skill)", enabled = false, func = function()
+        AttackEvent:FireServer("BoneWall", "R_Skill")
+    end},
+    {name = "BoneWall (Normal)", enabled = false, func = function()
+        AttackEvent:FireServer("BoneWall", "Normal")
+    end},
+    {name = "MadBlaster", enabled = false, func = function()
+        AttackEvent:FireServer("MadBlaster", Vector3.new(-228.47274780273438, -446.84695434570312, -1114.02685546875))
+    end}
 }
 
-local farmerGB = {enabled = false, speed = 0.1}
+-- ===================== FarmerGB 独立配置 =====================
+local farmerGB = {
+    enabled = false,
+    speed = 0.1
+}
+
 local isRunning = false
 local loopSpeed = 0.1
 
@@ -31,8 +53,8 @@ screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 260, 0, 420)  -- 缩小了尺寸
-mainFrame.Position = UDim2.new(0.5, -130, 0.5, -210)
+mainFrame.Size = UDim2.new(0, 260, 0, 450)
+mainFrame.Position = UDim2.new(0.5, -130, 0.5, -225)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
@@ -115,7 +137,7 @@ Instance.new("UICorner", applySpeedBtn).CornerRadius = UDim.new(0, 5)
 
 -- 技能列表
 local skillsFrame = Instance.new("ScrollingFrame")
-skillsFrame.Size = UDim2.new(0.9, 0, 0, 175)
+skillsFrame.Size = UDim2.new(0.9, 0, 0, 195)
 skillsFrame.Position = UDim2.new(0.05, 0, 0, 85)
 skillsFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
 skillsFrame.BorderSizePixel = 0
@@ -125,7 +147,7 @@ skillsFrame.Parent = mainFrame
 Instance.new("UICorner", skillsFrame).CornerRadius = UDim.new(0, 6)
 
 for i, skill in ipairs(skills) do
-    local s = skill  -- 修复闭包
+    local s = skill
 
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, -10, 0, 24)
@@ -148,7 +170,7 @@ end
 -- FarmerGB
 local farmerFrame = Instance.new("Frame")
 farmerFrame.Size = UDim2.new(0.9, 0, 0, 62)
-farmerFrame.Position = UDim2.new(0.05, 0, 0, 270)
+farmerFrame.Position = UDim2.new(0.05, 0, 0, 290)
 farmerFrame.BackgroundColor3 = Color3.fromRGB(45, 40, 55)
 farmerFrame.BorderSizePixel = 0
 farmerFrame.Parent = mainFrame
@@ -201,7 +223,7 @@ Instance.new("UICorner", farmerApplyBtn).CornerRadius = UDim.new(0, 4)
 -- 总开关
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0.9, 0, 0, 36)
-toggleBtn.Position = UDim2.new(0.05, 0, 0, 345)
+toggleBtn.Position = UDim2.new(0.05, 0, 0, 365)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
 toggleBtn.Text = "状态：已停止"
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -212,9 +234,9 @@ Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
 
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(0.9, 0, 0, 16)
-statusLabel.Position = UDim2.new(0.05, 0, 0, 388)
+statusLabel.Position = UDim2.new(0.05, 0, 0, 408)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "UI已缩小 + 支持拖动"
+statusLabel.Text = "已添加 MadBlaster"
 statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 statusLabel.TextSize = 11
 statusLabel.Font = Enum.Font.Gotham
@@ -305,11 +327,8 @@ closeBtn.MouseButton1Click:Connect(function()
     screenGui.Enabled = false
 end)
 
--- ===================== 拖动支持（已修复） =====================
-local dragging = false
-local dragStart = nil
-local startPos = nil
-
+-- 拖动支持
+local dragging, dragStart, startPos
 titleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
@@ -317,23 +336,16 @@ titleBar.InputBegan:Connect(function(input)
         startPos = mainFrame.Position
     end
 end)
-
 titleBar.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = false
     end
 end)
-
 UserInputService.InputChanged:Connect(function(input)
     if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - dragStart
-        mainFrame.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
-print("多技能脚本已加载（UI缩小 + 拖动修复）") 
+print("多技能脚本已加载（新增 MadBlaster）")
