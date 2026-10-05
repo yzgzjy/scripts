@@ -1,4 +1,4 @@
--- 多技能自动攻击（修复最小化 + MadBlaster 双模式）
+-- 多技能自动攻击（新增 MadBlaster 随机模式）
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -20,9 +20,12 @@ local skills = {
 }
 
 local farmerGB = {enabled = false, speed = 0.1}
+
+-- MadBlaster 模式： "first" | "random" | "all"
 local madBlaster = {
-    enabled = false,          -- 循环攻击第一个
-    speed = 0.15
+    enabled = false,
+    speed = 0.15,
+    mode = "first"  -- 默认打第一个
 }
 
 local isRunning = false
@@ -38,8 +41,8 @@ screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 260, 0, 380)
-mainFrame.Position = UDim2.new(0.5, -130, 0.5, -190)
+mainFrame.Size = UDim2.new(0, 260, 0, 420)
+mainFrame.Position = UDim2.new(0.5, -130, 0.5, -210)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
@@ -103,7 +106,7 @@ local applySpeedBtn = Instance.new("TextButton")
 applySpeedBtn.Size = UDim2.new(0.35, 0, 0, 24)
 applySpeedBtn.Position = UDim2.new(0.5, 0, 0, 40)
 applySpeedBtn.BackgroundColor3 = Color3.fromRGB(70, 100, 160)
-applySpeedBtn.Text = "应用速率"
+applySpeedBtn.Text = "应用"
 applySpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 applySpeedBtn.TextSize = 12
 applySpeedBtn.Font = Enum.Font.Gotham
@@ -177,20 +180,64 @@ farmerSpeedBox.Parent = mainFrame
 Instance.new("UICorner", farmerSpeedBox).CornerRadius = UDim.new(0, 5)
 
 -- MadBlaster 区域
-local madLoopBtn = Instance.new("TextButton")
-madLoopBtn.Size = UDim2.new(0.42, 0, 0, 26)
-madLoopBtn.Position = UDim2.new(0.05, 0, 0, 145)
-madLoopBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
-madLoopBtn.Text = "[关] 循环打第一个"
-madLoopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-madLoopBtn.TextSize = 11
-madLoopBtn.Font = Enum.Font.Gotham
-madLoopBtn.Parent = mainFrame
-Instance.new("UICorner", madLoopBtn).CornerRadius = UDim.new(0, 5)
+local madTitle = Instance.new("TextLabel")
+madTitle.Size = UDim2.new(0.9, 0, 0, 18)
+madTitle.Position = UDim2.new(0.05, 0, 0, 145)
+madTitle.BackgroundTransparency = 1
+madTitle.Text = "MadBlaster 模式："
+madTitle.TextColor3 = Color3.fromRGB(220, 180, 180)
+madTitle.TextSize = 12
+madTitle.Font = Enum.Font.GothamBold
+madTitle.TextXAlignment = Enum.TextXAlignment.Left
+madTitle.Parent = mainFrame
+
+local madFirstBtn = Instance.new("TextButton")
+madFirstBtn.Size = UDim2.new(0.28, 0, 0, 26)
+madFirstBtn.Position = UDim2.new(0.05, 0, 0, 168)
+madFirstBtn.BackgroundColor3 = Color3.fromRGB(40, 140, 70)
+madFirstBtn.Text = "第一个"
+madFirstBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+madFirstBtn.TextSize = 11
+madFirstBtn.Font = Enum.Font.Gotham
+madFirstBtn.Parent = mainFrame
+Instance.new("UICorner", madFirstBtn).CornerRadius = UDim.new(0, 5)
+
+local madRandomBtn = Instance.new("TextButton")
+madRandomBtn.Size = UDim2.new(0.28, 0, 0, 26)
+madRandomBtn.Position = UDim2.new(0.36, 0, 0, 168)
+madRandomBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
+madRandomBtn.Text = "随机"
+madRandomBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+madRandomBtn.TextSize = 11
+madRandomBtn.Font = Enum.Font.Gotham
+madRandomBtn.Parent = mainFrame
+Instance.new("UICorner", madRandomBtn).CornerRadius = UDim.new(0, 5)
+
+local madAllBtn = Instance.new("TextButton")
+madAllBtn.Size = UDim2.new(0.28, 0, 0, 26)
+madAllBtn.Position = UDim2.new(0.67, 0, 0, 168)
+madAllBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
+madAllBtn.Text = "全部"
+madAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+madAllBtn.TextSize = 11
+madAllBtn.Font = Enum.Font.Gotham
+madAllBtn.Parent = mainFrame
+Instance.new("UICorner", madAllBtn).CornerRadius = UDim.new(0, 5)
+
+local madEnableBtn = Instance.new("TextButton")
+madEnableBtn.Size = UDim2.new(0.42, 0, 0, 26)
+madEnableBtn.Position = UDim2.new(0.05, 0, 0, 202)
+madEnableBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
+madEnableBtn.Text = "[关] 循环开启"
+madEnableBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+madEnableBtn.TextSize = 11
+madEnableBtn.Font = Enum.Font.Gotham
+madEnableBtn.Parent = mainFrame
+Instance.new("UICorner", madEnableBtn).CornerRadius = UDim.new(0, 5)
 
 local madSpeedBox = Instance.new("TextBox")
 madSpeedBox.Size = UDim2.new(0.2, 0, 0, 26)
-madSpeedBox.Position = UDim2.new(0.5, 0, 0, 145)
+madSpeedBox.Position = UDim2.new(0.5, 0, 0, 202)
 madSpeedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
 madSpeedBox.Text = "0.15"
 madSpeedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -201,9 +248,9 @@ Instance.new("UICorner", madSpeedBox).CornerRadius = UDim.new(0, 5)
 
 local madOnceBtn = Instance.new("TextButton")
 madOnceBtn.Size = UDim2.new(0.9, 0, 0, 28)
-madOnceBtn.Position = UDim2.new(0.05, 0, 0, 180)
+madOnceBtn.Position = UDim2.new(0.05, 0, 0, 238)
 madOnceBtn.BackgroundColor3 = Color3.fromRGB(120, 60, 60)
-madOnceBtn.Text = "一次性攻击全部 SpawnedSans"
+madOnceBtn.Text = "一次性攻击（根据当前模式）"
 madOnceBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 madOnceBtn.TextSize = 12
 madOnceBtn.Font = Enum.Font.GothamBold
@@ -213,7 +260,7 @@ Instance.new("UICorner", madOnceBtn).CornerRadius = UDim.new(0, 5)
 -- 总开关
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0.9, 0, 0, 34)
-toggleBtn.Position = UDim2.new(0.05, 0, 0, 220)
+toggleBtn.Position = UDim2.new(0.05, 0, 0, 280)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
 toggleBtn.Text = "状态：已停止"
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -224,9 +271,9 @@ Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
 
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(0.9, 0, 0, 40)
-statusLabel.Position = UDim2.new(0.05, 0, 0, 265)
+statusLabel.Position = UDim2.new(0.05, 0, 0, 325)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "循环=只打第一个 | 一次性=攻击全部"
+statusLabel.Text = "MadBlaster 支持：第一个 / 随机 / 全部"
 statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 statusLabel.TextSize = 11
 statusLabel.Font = Enum.Font.Gotham
@@ -234,7 +281,6 @@ statusLabel.TextWrapped = true
 statusLabel.Parent = mainFrame
 
 local originalSize = mainFrame.Size
-local originalContent = {}  -- 用于最小化恢复
 
 -- ===================== 功能函数 =====================
 local function getPosition(inst)
@@ -249,6 +295,12 @@ local function getPosition(inst)
     end
 end
 
+local function getSansList()
+    local folder = Workspace:FindFirstChild("SpawnedSans")
+    if not folder then return {} end
+    return folder:GetChildren()
+end
+
 local function fireMadBlaster(pos)
     if pos then
         pcall(function()
@@ -257,21 +309,34 @@ local function fireMadBlaster(pos)
     end
 end
 
-local function attackAllOnce()
-    local folder = Workspace:FindFirstChild("SpawnedSans")
-    if not folder then
-        statusLabel.Text = "未找到 SpawnedSans"
+local function doMadBlasterOnce()
+    local list = getSansList()
+    if #list == 0 then
+        statusLabel.Text = "SpawnedSans 为空"
         return
     end
-    local count = 0
-    for _, inst in ipairs(folder:GetChildren()) do
-        local pos = getPosition(inst)
-        if pos then
-            fireMadBlaster(pos)
+
+    if madBlaster.mode == "first" then
+        fireMadBlaster(getPosition(list[1]))
+        statusLabel.Text = "已攻击第一个"
+    elseif madBlaster.mode == "random" then
+        local randomInst = list[math.random(1, #list)]
+        fireMadBlaster(getPosition(randomInst))
+        statusLabel.Text = "已随机攻击一个"
+    elseif madBlaster.mode == "all" then
+        local count = 0
+        for _, inst in ipairs(list) do
+            fireMadBlaster(getPosition(inst))
             count += 1
         end
+        statusLabel.Text = "已攻击全部 " .. count .. " 个"
     end
-    statusLabel.Text = "已一次性攻击 " .. count .. " 个实例"
+end
+
+local function updateModeButtons()
+    madFirstBtn.BackgroundColor3 = madBlaster.mode == "first" and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
+    madRandomBtn.BackgroundColor3 = madBlaster.mode == "random" and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
+    madAllBtn.BackgroundColor3 = madBlaster.mode == "all" and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
 end
 
 -- ===================== 事件 =====================
@@ -281,24 +346,10 @@ dropdownBtn.MouseButton1Click:Connect(function()
         dropdownFrame.Size = UDim2.new(0.9, 0, 0, 110)
         dropdownFrame.Visible = true
         dropdownBtn.Text = "▲ 收起列表"
-        farmerBtn.Position = UDim2.new(0.05, 0, 0, 220)
-        madLoopBtn.Position = UDim2.new(0.05, 0, 0, 255)
-        madSpeedBox.Position = UDim2.new(0.5, 0, 0, 255)
-        madOnceBtn.Position = UDim2.new(0.05, 0, 0, 290)
-        toggleBtn.Position = UDim2.new(0.05, 0, 0, 330)
-        statusLabel.Position = UDim2.new(0.05, 0, 0, 375)
-        mainFrame.Size = UDim2.new(0, 260, 0, 430)
     else
         dropdownFrame.Size = UDim2.new(0.9, 0, 0, 0)
         dropdownFrame.Visible = false
         dropdownBtn.Text = "▼ 普通技能列表"
-        farmerBtn.Position = UDim2.new(0.05, 0, 0, 110)
-        madLoopBtn.Position = UDim2.new(0.05, 0, 0, 145)
-        madSpeedBox.Position = UDim2.new(0.5, 0, 0, 145)
-        madOnceBtn.Position = UDim2.new(0.05, 0, 0, 180)
-        toggleBtn.Position = UDim2.new(0.05, 0, 0, 220)
-        statusLabel.Position = UDim2.new(0.05, 0, 0, 265)
-        mainFrame.Size = originalSize
     end
 end)
 
@@ -313,15 +364,32 @@ farmerBtn.MouseButton1Click:Connect(function()
     farmerBtn.Text = (farmerGB.enabled and "[开] " or "[关] ") .. "FarmerGB"
 end)
 
-madLoopBtn.MouseButton1Click:Connect(function()
-    madBlaster.enabled = not madBlaster.enabled
-    madLoopBtn.BackgroundColor3 = madBlaster.enabled and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
-    madLoopBtn.Text = (madBlaster.enabled and "[开] " or "[关] ") .. "循环打第一个"
+madFirstBtn.MouseButton1Click:Connect(function()
+    madBlaster.mode = "first"
+    updateModeButtons()
+    statusLabel.Text = "模式：只攻击第一个"
 end)
 
-madOnceBtn.MouseButton1Click:Connect(attackAllOnce)
+madRandomBtn.MouseButton1Click:Connect(function()
+    madBlaster.mode = "random"
+    updateModeButtons()
+    statusLabel.Text = "模式：随机攻击一个"
+end)
 
--- 总开关
+madAllBtn.MouseButton1Click:Connect(function()
+    madBlaster.mode = "all"
+    updateModeButtons()
+    statusLabel.Text = "模式：攻击全部"
+end)
+
+madEnableBtn.MouseButton1Click:Connect(function()
+    madBlaster.enabled = not madBlaster.enabled
+    madEnableBtn.BackgroundColor3 = madBlaster.enabled and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
+    madEnableBtn.Text = (madBlaster.enabled and "[开] " or "[关] ") .. "循环开启"
+end)
+
+madOnceBtn.MouseButton1Click:Connect(doMadBlasterOnce)
+
 toggleBtn.MouseButton1Click:Connect(function()
     isRunning = not isRunning
     if isRunning then
@@ -349,12 +417,7 @@ toggleBtn.MouseButton1Click:Connect(function()
         task.spawn(function()
             while isRunning do
                 if madBlaster.enabled then
-                    local folder = Workspace:FindFirstChild("SpawnedSans")
-                    if folder then
-                        local first = folder:GetChildren()[1]
-                        local pos = getPosition(first)
-                        fireMadBlaster(pos)
-                    end
+                    doMadBlasterOnce()
                 end
                 task.wait(madBlaster.speed)
             end
@@ -365,7 +428,7 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- 最小化（已修复）
+-- 最小化
 minimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
     if isMinimized then
@@ -410,4 +473,5 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
-print("脚本已加载：最小化已修复 + MadBlaster 支持循环第一个 / 一次性全部")
+updateModeButtons()
+print("脚本已加载：MadBlaster 支持 第一个 / 随机 / 全部 模式")
