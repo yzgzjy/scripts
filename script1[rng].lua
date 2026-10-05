@@ -1,4 +1,4 @@
--- 多技能自动攻击（新增 MadBlaster 随机模式）
+-- 多技能自动攻击（新增 AntiErrorGB 独立技能）
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -20,12 +20,11 @@ local skills = {
 }
 
 local farmerGB = {enabled = false, speed = 0.1}
-
--- MadBlaster 模式： "first" | "random" | "all"
+local antiErrorGB = {enabled = false, speed = 0.1}
 local madBlaster = {
     enabled = false,
     speed = 0.15,
-    mode = "first"  -- 默认打第一个
+    mode = "first" -- first / random / all
 }
 
 local isRunning = false
@@ -41,8 +40,8 @@ screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 260, 0, 420)
-mainFrame.Position = UDim2.new(0.5, -130, 0.5, -210)
+mainFrame.Size = UDim2.new(0, 260, 0, 460)
+mainFrame.Position = UDim2.new(0.5, -130, 0.5, -230)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
@@ -179,10 +178,33 @@ farmerSpeedBox.Font = Enum.Font.Gotham
 farmerSpeedBox.Parent = mainFrame
 Instance.new("UICorner", farmerSpeedBox).CornerRadius = UDim.new(0, 5)
 
--- MadBlaster 区域
+-- AntiErrorGB（新增独立）
+local antiBtn = Instance.new("TextButton")
+antiBtn.Size = UDim2.new(0.42, 0, 0, 26)
+antiBtn.Position = UDim2.new(0.05, 0, 0, 145)
+antiBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
+antiBtn.Text = "[关] AntiErrorGB"
+antiBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+antiBtn.TextSize = 11
+antiBtn.Font = Enum.Font.Gotham
+antiBtn.Parent = mainFrame
+Instance.new("UICorner", antiBtn).CornerRadius = UDim.new(0, 5)
+
+local antiSpeedBox = Instance.new("TextBox")
+antiSpeedBox.Size = UDim2.new(0.2, 0, 0, 26)
+antiSpeedBox.Position = UDim2.new(0.5, 0, 0, 145)
+antiSpeedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+antiSpeedBox.Text = "0.1"
+antiSpeedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+antiSpeedBox.TextSize = 11
+antiSpeedBox.Font = Enum.Font.Gotham
+antiSpeedBox.Parent = mainFrame
+Instance.new("UICorner", antiSpeedBox).CornerRadius = UDim.new(0, 5)
+
+-- MadBlaster
 local madTitle = Instance.new("TextLabel")
 madTitle.Size = UDim2.new(0.9, 0, 0, 18)
-madTitle.Position = UDim2.new(0.05, 0, 0, 145)
+madTitle.Position = UDim2.new(0.05, 0, 0, 180)
 madTitle.BackgroundTransparency = 1
 madTitle.Text = "MadBlaster 模式："
 madTitle.TextColor3 = Color3.fromRGB(220, 180, 180)
@@ -193,7 +215,7 @@ madTitle.Parent = mainFrame
 
 local madFirstBtn = Instance.new("TextButton")
 madFirstBtn.Size = UDim2.new(0.28, 0, 0, 26)
-madFirstBtn.Position = UDim2.new(0.05, 0, 0, 168)
+madFirstBtn.Position = UDim2.new(0.05, 0, 0, 202)
 madFirstBtn.BackgroundColor3 = Color3.fromRGB(40, 140, 70)
 madFirstBtn.Text = "第一个"
 madFirstBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -204,7 +226,7 @@ Instance.new("UICorner", madFirstBtn).CornerRadius = UDim.new(0, 5)
 
 local madRandomBtn = Instance.new("TextButton")
 madRandomBtn.Size = UDim2.new(0.28, 0, 0, 26)
-madRandomBtn.Position = UDim2.new(0.36, 0, 0, 168)
+madRandomBtn.Position = UDim2.new(0.36, 0, 0, 202)
 madRandomBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
 madRandomBtn.Text = "随机"
 madRandomBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -215,7 +237,7 @@ Instance.new("UICorner", madRandomBtn).CornerRadius = UDim.new(0, 5)
 
 local madAllBtn = Instance.new("TextButton")
 madAllBtn.Size = UDim2.new(0.28, 0, 0, 26)
-madAllBtn.Position = UDim2.new(0.67, 0, 0, 168)
+madAllBtn.Position = UDim2.new(0.67, 0, 0, 202)
 madAllBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
 madAllBtn.Text = "全部"
 madAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -226,7 +248,7 @@ Instance.new("UICorner", madAllBtn).CornerRadius = UDim.new(0, 5)
 
 local madEnableBtn = Instance.new("TextButton")
 madEnableBtn.Size = UDim2.new(0.42, 0, 0, 26)
-madEnableBtn.Position = UDim2.new(0.05, 0, 0, 202)
+madEnableBtn.Position = UDim2.new(0.05, 0, 0, 236)
 madEnableBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
 madEnableBtn.Text = "[关] 循环开启"
 madEnableBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -237,7 +259,7 @@ Instance.new("UICorner", madEnableBtn).CornerRadius = UDim.new(0, 5)
 
 local madSpeedBox = Instance.new("TextBox")
 madSpeedBox.Size = UDim2.new(0.2, 0, 0, 26)
-madSpeedBox.Position = UDim2.new(0.5, 0, 0, 202)
+madSpeedBox.Position = UDim2.new(0.5, 0, 0, 236)
 madSpeedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
 madSpeedBox.Text = "0.15"
 madSpeedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -248,7 +270,7 @@ Instance.new("UICorner", madSpeedBox).CornerRadius = UDim.new(0, 5)
 
 local madOnceBtn = Instance.new("TextButton")
 madOnceBtn.Size = UDim2.new(0.9, 0, 0, 28)
-madOnceBtn.Position = UDim2.new(0.05, 0, 0, 238)
+madOnceBtn.Position = UDim2.new(0.05, 0, 0, 270)
 madOnceBtn.BackgroundColor3 = Color3.fromRGB(120, 60, 60)
 madOnceBtn.Text = "一次性攻击（根据当前模式）"
 madOnceBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -260,7 +282,7 @@ Instance.new("UICorner", madOnceBtn).CornerRadius = UDim.new(0, 5)
 -- 总开关
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0.9, 0, 0, 34)
-toggleBtn.Position = UDim2.new(0.05, 0, 0, 280)
+toggleBtn.Position = UDim2.new(0.05, 0, 0, 310)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
 toggleBtn.Text = "状态：已停止"
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -271,9 +293,9 @@ Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
 
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(0.9, 0, 0, 40)
-statusLabel.Position = UDim2.new(0.05, 0, 0, 325)
+statusLabel.Position = UDim2.new(0.05, 0, 0, 355)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "MadBlaster 支持：第一个 / 随机 / 全部"
+statusLabel.Text = "已添加 AntiErrorGB 独立技能"
 statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 statusLabel.TextSize = 11
 statusLabel.Font = Enum.Font.Gotham
@@ -364,6 +386,12 @@ farmerBtn.MouseButton1Click:Connect(function()
     farmerBtn.Text = (farmerGB.enabled and "[开] " or "[关] ") .. "FarmerGB"
 end)
 
+antiBtn.MouseButton1Click:Connect(function()
+    antiErrorGB.enabled = not antiErrorGB.enabled
+    antiBtn.BackgroundColor3 = antiErrorGB.enabled and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
+    antiBtn.Text = (antiErrorGB.enabled and "[开] " or "[关] ") .. "AntiErrorGB"
+end)
+
 madFirstBtn.MouseButton1Click:Connect(function()
     madBlaster.mode = "first"
     updateModeButtons()
@@ -396,6 +424,7 @@ toggleBtn.MouseButton1Click:Connect(function()
         toggleBtn.Text = "状态：运行中"
         toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
 
+        -- 普通技能
         task.spawn(function()
             while isRunning do
                 for _, skill in ipairs(skills) do
@@ -405,6 +434,7 @@ toggleBtn.MouseButton1Click:Connect(function()
             end
         end)
 
+        -- FarmerGB
         task.spawn(function()
             while isRunning do
                 if farmerGB.enabled then
@@ -414,6 +444,19 @@ toggleBtn.MouseButton1Click:Connect(function()
             end
         end)
 
+        -- AntiErrorGB（新增）
+        task.spawn(function()
+            while isRunning do
+                if antiErrorGB.enabled then
+                    pcall(function()
+                        AttackEvent:FireServer("AntiErrorGB", Vector3.new(131.50534057617188, 128.61033630371094, -630.021728515625))
+                    end)
+                end
+                task.wait(antiErrorGB.speed)
+            end
+        end)
+
+        -- MadBlaster
         task.spawn(function()
             while isRunning do
                 if madBlaster.enabled then
@@ -474,4 +517,4 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 updateModeButtons()
-print("脚本已加载：MadBlaster 支持 第一个 / 随机 / 全部 模式")
+print("脚本已加载：已添加 AntiErrorGB 独立技能")
