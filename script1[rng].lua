@@ -1,4 +1,4 @@
--- 多技能自动攻击（独立技能新增 FarmerGB2）
+-- 多技能自动攻击（MadBlaster 新增瞄准中心模式）
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,7 +8,6 @@ local player = Players.LocalPlayer
 local AttackEvent = ReplicatedStorage:WaitForChild("AttackEvent")
 local SkillRemote = ReplicatedStorage:WaitForChild("SkillRemote")
 
--- 普通技能
 local normalSkills = {
     {name = "BoneThrow", enabled = false, func = function() AttackEvent:FireServer("BoneThrow") end},
     {name = "dash_attack2", enabled = false, func = function() SkillRemote:FireServer("dash_attack2") end},
@@ -19,15 +18,12 @@ local normalSkills = {
     {name = "BoneWall (Normal)", enabled = false, func = function() AttackEvent:FireServer("BoneWall", "Normal") end}
 }
 
--- 独立技能
 local specialSkills = {
     {
         name = "FarmerGB",
         enabled = false,
         speed = 0.1,
-        func = function()
-            AttackEvent:FireServer("FarmerGB")
-        end
+        func = function() AttackEvent:FireServer("FarmerGB") end
     },
     {
         name = "AntiErrorGB",
@@ -50,7 +46,8 @@ local specialSkills = {
 local madBlaster = {
     enabled = false,
     speed = 0.15,
-    mode = "first" -- first / random / all
+    mode = "first",          -- first / random / all / center
+    centerPos = nil          -- 记录的中心位置
 }
 
 local isRunning = false
@@ -115,7 +112,6 @@ closeBtn.Font = Enum.Font.GothamBold
 closeBtn.Parent = titleBar
 Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 5)
 
--- 普通速率
 local speedBox = Instance.new("TextBox")
 speedBox.Size = UDim2.new(0.4, 0, 0, 24)
 speedBox.Position = UDim2.new(0.05, 0, 0, 38)
@@ -139,7 +135,6 @@ applySpeedBtn.Font = Enum.Font.Gotham
 applySpeedBtn.Parent = mainFrame
 Instance.new("UICorner", applySpeedBtn).CornerRadius = UDim.new(0, 5)
 
--- 普通技能折叠
 local normalBtn = Instance.new("TextButton")
 normalBtn.Size = UDim2.new(0.9, 0, 0, 26)
 normalBtn.Position = UDim2.new(0.05, 0, 0, 70)
@@ -182,7 +177,6 @@ for i, skill in ipairs(normalSkills) do
 end
 normalFrame.CanvasSize = UDim2.new(0, 0, 0, #normalSkills * 24 + 6)
 
--- 独立技能折叠
 local specialBtn = Instance.new("TextButton")
 specialBtn.Size = UDim2.new(0.9, 0, 0, 26)
 specialBtn.Position = UDim2.new(0.05, 0, 0, 105)
@@ -203,16 +197,46 @@ specialFrame.Visible = false
 specialFrame.Parent = mainFrame
 Instance.new("UICorner", specialFrame).CornerRadius = UDim.new(0, 5)
 
--- 创建独立技能内容
+local function getPos(inst)
+    if not inst then return nil end
+    if inst:IsA("Model") then return inst:GetPivot().Position end
+    if inst:IsA("BasePart") then return inst.Position end
+    local p = inst:FindFirstChildWhichIsA("BasePart", true)
+    return p and p.Position
+end
+
+local function doMadBlaster()
+    if madBlaster.mode == "center" then
+        if madBlaster.centerPos then
+            AttackEvent:FireServer("MadBlaster", madBlaster.centerPos)
+        end
+        return
+    end
+
+    local folder = Workspace:FindFirstChild("SpawnedSans")
+    local list = folder and folder:GetChildren() or {}
+    if #list == 0 then return end
+
+    if madBlaster.mode == "first" then
+        AttackEvent:FireServer("MadBlaster", getPos(list[1]))
+    elseif madBlaster.mode == "random" then
+        AttackEvent:FireServer("MadBlaster", getPos(list[math.random(1, #list)]))
+    elseif madBlaster.mode == "all" then
+        for _, inst in ipairs(list) do
+            local pos = getPos(inst)
+            if pos then AttackEvent:FireServer("MadBlaster", pos) end
+        end
+    end
+end
+
 local function createSpecialContent()
     specialFrame:ClearAllChildren()
     Instance.new("UICorner", specialFrame).CornerRadius = UDim.new(0, 5)
 
     local y = 6
 
-    for i, skill in ipairs(specialSkills) do
+    for _, skill in ipairs(specialSkills) do
         local s = skill
-
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(0.55, 0, 0, 24)
         btn.Position = UDim2.new(0.03, 0, 0, y)
@@ -224,36 +248,31 @@ local function createSpecialContent()
         btn.Parent = specialFrame
         Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
 
-        local speedBox = Instance.new("TextBox")
-        speedBox.Size = UDim2.new(0.35, 0, 0, 24)
-        speedBox.Position = UDim2.new(0.62, 0, 0, y)
-        speedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-        speedBox.Text = tostring(s.speed)
-        speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-        speedBox.TextSize = 11
-        speedBox.Font = Enum.Font.Gotham
-        speedBox.Parent = specialFrame
-        Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0, 4)
+        local sp = Instance.new("TextBox")
+        sp.Size = UDim2.new(0.35, 0, 0, 24)
+        sp.Position = UDim2.new(0.62, 0, 0, y)
+        sp.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+        sp.Text = tostring(s.speed)
+        sp.TextColor3 = Color3.fromRGB(255, 255, 255)
+        sp.TextSize = 11
+        sp.Font = Enum.Font.Gotham
+        sp.Parent = specialFrame
+        Instance.new("UICorner", sp).CornerRadius = UDim.new(0, 4)
 
         btn.MouseButton1Click:Connect(function()
             s.enabled = not s.enabled
-            btn.BackgroundColor3 = s.enabled and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
-            btn.Text = (s.enabled and "[开] " or "[关] ") .. s.name
+            createSpecialContent()
         end)
-
-        speedBox.FocusLost:Connect(function()
-            local n = tonumber(speedBox.Text)
-            if n and n > 0 then
-                s.speed = n
-            end
+        sp.FocusLost:Connect(function()
+            local n = tonumber(sp.Text)
+            if n and n > 0 then s.speed = n end
         end)
-
-        y = y + 30
+        y = y + 28
     end
 
-    -- MadBlaster
+    -- MadBlaster 模式
     local modeLabel = Instance.new("TextLabel")
-    modeLabel.Size = UDim2.new(0.9, 0, 0, 18)
+    modeLabel.Size = UDim2.new(0.9, 0, 0, 16)
     modeLabel.Position = UDim2.new(0.05, 0, 0, y)
     modeLabel.BackgroundTransparency = 1
     modeLabel.Text = "MadBlaster 模式："
@@ -262,31 +281,40 @@ local function createSpecialContent()
     modeLabel.Font = Enum.Font.Gotham
     modeLabel.TextXAlignment = Enum.TextXAlignment.Left
     modeLabel.Parent = specialFrame
+    y = y + 18
 
-    y = y + 20
+    local modes = {
+        {text = "第一个", mode = "first"},
+        {text = "随机", mode = "random"},
+        {text = "全部", mode = "all"},
+        {text = "中心", mode = "center"}
+    }
 
-    local function makeModeBtn(text, mode, xScale)
+    for i, m in ipairs(modes) do
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0.28, 0, 0, 22)
-        btn.Position = UDim2.new(xScale, 0, 0, y)
-        btn.BackgroundColor3 = madBlaster.mode == mode and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
-        btn.Text = text
+        btn.Size = UDim2.new(0.22, 0, 0, 22)
+        btn.Position = UDim2.new(0.03 + (i-1)*0.24, 0, 0, y)
+        btn.BackgroundColor3 = madBlaster.mode == m.mode and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
+        btn.Text = m.text
         btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.TextSize = 11
+        btn.TextSize = 10
         btn.Font = Enum.Font.Gotham
         btn.Parent = specialFrame
         Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
 
         btn.MouseButton1Click:Connect(function()
-            madBlaster.mode = mode
+            madBlaster.mode = m.mode
+            if m.mode == "center" then
+                local char = player.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    madBlaster.centerPos = root.Position
+                    print("已记录当前位置作为 MadBlaster 中心:", madBlaster.centerPos)
+                end
+            end
             createSpecialContent()
         end)
     end
-
-    makeModeBtn("第一个", "first", 0.03)
-    makeModeBtn("随机", "random", 0.36)
-    makeModeBtn("全部", "all", 0.69)
-
     y = y + 28
 
     local mBtn = Instance.new("TextButton")
@@ -313,14 +341,19 @@ local function createSpecialContent()
 
     mBtn.MouseButton1Click:Connect(function()
         madBlaster.enabled = not madBlaster.enabled
+        if madBlaster.enabled and madBlaster.mode == "center" and not madBlaster.centerPos then
+            local char = player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root then
+                madBlaster.centerPos = root.Position
+            end
+        end
         createSpecialContent()
     end)
-
     mSpeed.FocusLost:Connect(function()
         local n = tonumber(mSpeed.Text)
         if n and n > 0 then madBlaster.speed = n end
     end)
-
     y = y + 30
 
     local onceBtn = Instance.new("TextButton")
@@ -334,35 +367,11 @@ local function createSpecialContent()
     onceBtn.Parent = specialFrame
     Instance.new("UICorner", onceBtn).CornerRadius = UDim.new(0, 4)
 
-    onceBtn.MouseButton1Click:Connect(function()
-        local folder = Workspace:FindFirstChild("SpawnedSans")
-        if not folder then return end
-        local list = folder:GetChildren()
-        if #list == 0 then return end
-
-        local function getPos(inst)
-            if inst:IsA("Model") then return inst:GetPivot().Position end
-            if inst:IsA("BasePart") then return inst.Position end
-            local p = inst:FindFirstChildWhichIsA("BasePart", true)
-            return p and p.Position
-        end
-
-        if madBlaster.mode == "first" then
-            AttackEvent:FireServer("MadBlaster", getPos(list[1]))
-        elseif madBlaster.mode == "random" then
-            AttackEvent:FireServer("MadBlaster", getPos(list[math.random(1, #list)]))
-        else
-            for _, inst in ipairs(list) do
-                local pos = getPos(inst)
-                if pos then AttackEvent:FireServer("MadBlaster", pos) end
-            end
-        end
-    end)
+    onceBtn.MouseButton1Click:Connect(doMadBlaster)
 end
 
 createSpecialContent()
 
--- 总开关
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0.9, 0, 0, 34)
 toggleBtn.Position = UDim2.new(0.05, 0, 0, 140)
@@ -378,13 +387,12 @@ local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(0.9, 0, 0, 30)
 statusLabel.Position = UDim2.new(0.05, 0, 0, 180)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "已添加 FarmerGB2"
+statusLabel.Text = "MadBlaster 新增「中心」模式"
 statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 statusLabel.TextSize = 11
 statusLabel.Font = Enum.Font.Gotham
 statusLabel.Parent = mainFrame
 
--- ===================== 布局更新 =====================
 local function updateLayout()
     local y = 70
     normalBtn.Position = UDim2.new(0.05, 0, 0, y)
@@ -397,7 +405,6 @@ local function updateLayout()
         normalBtn.Text = "▲ 普通技能"
         y = y + 125
     else
-        normalFrame.Size = UDim2.new(0.9, 0, 0, 0)
         normalFrame.Visible = false
         normalBtn.Text = "▼ 普通技能"
     end
@@ -407,12 +414,11 @@ local function updateLayout()
 
     if specialOpen then
         specialFrame.Position = UDim2.new(0.05, 0, 0, y)
-        specialFrame.Size = UDim2.new(0.9, 0, 0, 190)
+        specialFrame.Size = UDim2.new(0.9, 0, 0, 200)
         specialFrame.Visible = true
         specialBtn.Text = "▲ 独立技能"
-        y = y + 195
+        y = y + 205
     else
-        specialFrame.Size = UDim2.new(0.9, 0, 0, 0)
         specialFrame.Visible = false
         specialBtn.Text = "▼ 独立技能"
     end
@@ -420,7 +426,6 @@ local function updateLayout()
     toggleBtn.Position = UDim2.new(0.05, 0, 0, y)
     y = y + 42
     statusLabel.Position = UDim2.new(0.05, 0, 0, y)
-
     mainFrame.Size = UDim2.new(0, 250, 0, y + 40)
 end
 
@@ -439,14 +444,12 @@ applySpeedBtn.MouseButton1Click:Connect(function()
     if n and n > 0 then loopSpeed = n end
 end)
 
--- 总开关逻辑
 toggleBtn.MouseButton1Click:Connect(function()
     isRunning = not isRunning
     if isRunning then
         toggleBtn.Text = "状态：运行中"
         toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
 
-        -- 普通技能循环
         task.spawn(function()
             while isRunning do
                 for _, skill in ipairs(normalSkills) do
@@ -456,7 +459,6 @@ toggleBtn.MouseButton1Click:Connect(function()
             end
         end)
 
-        -- 独立技能循环
         task.spawn(function()
             while isRunning do
                 for _, skill in ipairs(specialSkills) do
@@ -469,31 +471,10 @@ toggleBtn.MouseButton1Click:Connect(function()
             end
         end)
 
-        -- MadBlaster 循环
         task.spawn(function()
             while isRunning do
                 if madBlaster.enabled then
-                    local folder = Workspace:FindFirstChild("SpawnedSans")
-                    local list = folder and folder:GetChildren() or {}
-                    if #list > 0 then
-                        local function getPos(inst)
-                            if inst:IsA("Model") then return inst:GetPivot().Position end
-                            if inst:IsA("BasePart") then return inst.Position end
-                            local p = inst:FindFirstChildWhichIsA("BasePart", true)
-                            return p and p.Position
-                        end
-
-                        if madBlaster.mode == "first" then
-                            AttackEvent:FireServer("MadBlaster", getPos(list[1]))
-                        elseif madBlaster.mode == "random" then
-                            AttackEvent:FireServer("MadBlaster", getPos(list[math.random(1, #list)]))
-                        else
-                            for _, inst in ipairs(list) do
-                                local pos = getPos(inst)
-                                if pos then AttackEvent:FireServer("MadBlaster", pos) end
-                            end
-                        end
-                    end
+                    pcall(doMadBlaster)
                 end
                 task.wait(madBlaster.speed)
             end
@@ -504,7 +485,6 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- 最小化
 minimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
     if isMinimized then
@@ -529,7 +509,6 @@ closeBtn.MouseButton1Click:Connect(function()
     screenGui:Destroy()
 end)
 
--- 拖动
 local dragging, dragStart, startPos
 titleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -547,4 +526,4 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 updateLayout()
-print("脚本已加载：独立技能已添加 FarmerGB2")
+print("脚本已加载：MadBlaster 新增「中心」模式")
