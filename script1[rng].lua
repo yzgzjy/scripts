@@ -1,4 +1,4 @@
--- 多技能自动攻击（MadBlaster 新增瞄准中心模式）
+-- 多技能自动攻击（新增 ClickDetector + 3个技能）
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,6 +8,7 @@ local player = Players.LocalPlayer
 local AttackEvent = ReplicatedStorage:WaitForChild("AttackEvent")
 local SkillRemote = ReplicatedStorage:WaitForChild("SkillRemote")
 
+-- 普通技能
 local normalSkills = {
     {name = "BoneThrow", enabled = false, func = function() AttackEvent:FireServer("BoneThrow") end},
     {name = "dash_attack2", enabled = false, func = function() SkillRemote:FireServer("dash_attack2") end},
@@ -18,36 +19,38 @@ local normalSkills = {
     {name = "BoneWall (Normal)", enabled = false, func = function() AttackEvent:FireServer("BoneWall", "Normal") end}
 }
 
+-- 独立技能
 local specialSkills = {
-    {
-        name = "FarmerGB",
-        enabled = false,
-        speed = 0.1,
-        func = function() AttackEvent:FireServer("FarmerGB") end
-    },
-    {
-        name = "AntiErrorGB",
-        enabled = false,
-        speed = 0.1,
-        func = function()
-            AttackEvent:FireServer("AntiErrorGB", Vector3.new(131.50534057617188, 128.61033630371094, -630.021728515625))
-        end
-    },
-    {
-        name = "FarmerGB2",
-        enabled = false,
-        speed = 0.1,
-        func = function()
-            AttackEvent:FireServer("FarmerGB2", Vector3.new(131.50534057617188, 128.61033630371094, -630.021728515625))
-        end
-    }
+    {name = "FarmerGB", enabled = false, speed = 0.1, func = function()
+        AttackEvent:FireServer("FarmerGB")
+    end},
+    {name = "AntiErrorGB", enabled = false, speed = 0.1, func = function()
+        AttackEvent:FireServer("AntiErrorGB", Vector3.new(131.50534057617188, 128.61033630371094, -630.021728515625))
+    end},
+    {name = "FarmerGB2", enabled = false, speed = 0.1, func = function()
+        AttackEvent:FireServer("FarmerGB2", Vector3.new(131.50534057617188, 128.61033630371094, -630.021728515625))
+    end},
+    {name = "DustFellBlaster", enabled = false, speed = 0.1, func = function()
+        AttackEvent:FireServer("DustFellBlaster", "Normal")
+    end},
+    {name = "Axe", enabled = false, speed = 0.1, func = function()
+        AttackEvent:FireServer("Axe", "Slash")
+    end},
+    {name = "Cosmic Judgment", enabled = false, speed = 0.1, func = function()
+        AttackEvent:FireServer("Cosmic Judgment", "Normal")
+    end}
 }
 
 local madBlaster = {
     enabled = false,
     speed = 0.15,
-    mode = "first",          -- first / random / all / center
-    centerPos = nil          -- 记录的中心位置
+    mode = "first", -- first / random / all / center
+    centerPos = nil
+}
+
+local clickDetector = {
+    enabled = false,
+    speed = 0.1
 }
 
 local isRunning = false
@@ -64,7 +67,7 @@ screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 250, 0, 320)
+mainFrame.Size = UDim2.new(0, 250, 0, 340)
 mainFrame.Position = UDim2.new(0.5, -125, 0.55, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BorderSizePixel = 0
@@ -205,6 +208,21 @@ local function getPos(inst)
     return p and p.Position
 end
 
+local function fireClickDetectors()
+    local folder = Workspace:FindFirstChild("SpawnedSans")
+    if not folder then return end
+    local first = folder:GetChildren()[1]
+    if not first then return end
+
+    for _, obj in ipairs(first:GetDescendants()) do
+        if obj:IsA("ClickDetector") then
+            pcall(function()
+                fireclickdetector(obj)
+            end)
+        end
+    end
+end
+
 local function doMadBlaster()
     if madBlaster.mode == "center" then
         if madBlaster.centerPos then
@@ -235,26 +253,27 @@ local function createSpecialContent()
 
     local y = 6
 
+    -- 独立技能列表
     for _, skill in ipairs(specialSkills) do
         local s = skill
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0.55, 0, 0, 24)
+        btn.Size = UDim2.new(0.55, 0, 0, 22)
         btn.Position = UDim2.new(0.03, 0, 0, y)
         btn.BackgroundColor3 = s.enabled and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
         btn.Text = (s.enabled and "[开] " or "[关] ") .. s.name
         btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.TextSize = 11
+        btn.TextSize = 10
         btn.Font = Enum.Font.Gotham
         btn.Parent = specialFrame
         Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
 
         local sp = Instance.new("TextBox")
-        sp.Size = UDim2.new(0.35, 0, 0, 24)
+        sp.Size = UDim2.new(0.35, 0, 0, 22)
         sp.Position = UDim2.new(0.62, 0, 0, y)
         sp.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
         sp.Text = tostring(s.speed)
         sp.TextColor3 = Color3.fromRGB(255, 255, 255)
-        sp.TextSize = 11
+        sp.TextSize = 10
         sp.Font = Enum.Font.Gotham
         sp.Parent = specialFrame
         Instance.new("UICorner", sp).CornerRadius = UDim.new(0, 4)
@@ -267,15 +286,48 @@ local function createSpecialContent()
             local n = tonumber(sp.Text)
             if n and n > 0 then s.speed = n end
         end)
-        y = y + 28
+        y = y + 26
     end
+
+    -- ClickDetector
+    local cdBtn = Instance.new("TextButton")
+    cdBtn.Size = UDim2.new(0.55, 0, 0, 22)
+    cdBtn.Position = UDim2.new(0.03, 0, 0, y)
+    cdBtn.BackgroundColor3 = clickDetector.enabled and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
+    cdBtn.Text = (clickDetector.enabled and "[开] " or "[关] ") .. "ClickDetector"
+    cdBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    cdBtn.TextSize = 10
+    cdBtn.Font = Enum.Font.Gotham
+    cdBtn.Parent = specialFrame
+    Instance.new("UICorner", cdBtn).CornerRadius = UDim.new(0, 4)
+
+    local cdSpeed = Instance.new("TextBox")
+    cdSpeed.Size = UDim2.new(0.35, 0, 0, 22)
+    cdSpeed.Position = UDim2.new(0.62, 0, 0, y)
+    cdSpeed.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    cdSpeed.Text = tostring(clickDetector.speed)
+    cdSpeed.TextColor3 = Color3.fromRGB(255, 255, 255)
+    cdSpeed.TextSize = 10
+    cdSpeed.Font = Enum.Font.Gotham
+    cdSpeed.Parent = specialFrame
+    Instance.new("UICorner", cdSpeed).CornerRadius = UDim.new(0, 4)
+
+    cdBtn.MouseButton1Click:Connect(function()
+        clickDetector.enabled = not clickDetector.enabled
+        createSpecialContent()
+    end)
+    cdSpeed.FocusLost:Connect(function()
+        local n = tonumber(cdSpeed.Text)
+        if n and n > 0 then clickDetector.speed = n end
+    end)
+    y = y + 28
 
     -- MadBlaster 模式
     local modeLabel = Instance.new("TextLabel")
     modeLabel.Size = UDim2.new(0.9, 0, 0, 16)
     modeLabel.Position = UDim2.new(0.05, 0, 0, y)
     modeLabel.BackgroundTransparency = 1
-    modeLabel.Text = "MadBlaster 模式："
+    modeLabel.Text = "MadBlaster："
     modeLabel.TextColor3 = Color3.fromRGB(220, 180, 180)
     modeLabel.TextSize = 11
     modeLabel.Font = Enum.Font.Gotham
@@ -292,7 +344,7 @@ local function createSpecialContent()
 
     for i, m in ipairs(modes) do
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0.22, 0, 0, 22)
+        btn.Size = UDim2.new(0.22, 0, 0, 20)
         btn.Position = UDim2.new(0.03 + (i-1)*0.24, 0, 0, y)
         btn.BackgroundColor3 = madBlaster.mode == m.mode and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
         btn.Text = m.text
@@ -309,32 +361,31 @@ local function createSpecialContent()
                 local root = char and char:FindFirstChild("HumanoidRootPart")
                 if root then
                     madBlaster.centerPos = root.Position
-                    print("已记录当前位置作为 MadBlaster 中心:", madBlaster.centerPos)
                 end
             end
             createSpecialContent()
         end)
     end
-    y = y + 28
+    y = y + 26
 
     local mBtn = Instance.new("TextButton")
-    mBtn.Size = UDim2.new(0.55, 0, 0, 24)
+    mBtn.Size = UDim2.new(0.55, 0, 0, 22)
     mBtn.Position = UDim2.new(0.03, 0, 0, y)
     mBtn.BackgroundColor3 = madBlaster.enabled and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
     mBtn.Text = (madBlaster.enabled and "[开] " or "[关] ") .. "MadBlaster"
     mBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    mBtn.TextSize = 11
+    mBtn.TextSize = 10
     mBtn.Font = Enum.Font.Gotham
     mBtn.Parent = specialFrame
     Instance.new("UICorner", mBtn).CornerRadius = UDim.new(0, 4)
 
     local mSpeed = Instance.new("TextBox")
-    mSpeed.Size = UDim2.new(0.35, 0, 0, 24)
+    mSpeed.Size = UDim2.new(0.35, 0, 0, 22)
     mSpeed.Position = UDim2.new(0.62, 0, 0, y)
     mSpeed.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
     mSpeed.Text = tostring(madBlaster.speed)
     mSpeed.TextColor3 = Color3.fromRGB(255, 255, 255)
-    mSpeed.TextSize = 11
+    mSpeed.TextSize = 10
     mSpeed.Font = Enum.Font.Gotham
     mSpeed.Parent = specialFrame
     Instance.new("UICorner", mSpeed).CornerRadius = UDim.new(0, 4)
@@ -344,9 +395,7 @@ local function createSpecialContent()
         if madBlaster.enabled and madBlaster.mode == "center" and not madBlaster.centerPos then
             local char = player.Character
             local root = char and char:FindFirstChild("HumanoidRootPart")
-            if root then
-                madBlaster.centerPos = root.Position
-            end
+            if root then madBlaster.centerPos = root.Position end
         end
         createSpecialContent()
     end)
@@ -354,20 +403,6 @@ local function createSpecialContent()
         local n = tonumber(mSpeed.Text)
         if n and n > 0 then madBlaster.speed = n end
     end)
-    y = y + 30
-
-    local onceBtn = Instance.new("TextButton")
-    onceBtn.Size = UDim2.new(0.94, 0, 0, 24)
-    onceBtn.Position = UDim2.new(0.03, 0, 0, y)
-    onceBtn.BackgroundColor3 = Color3.fromRGB(120, 60, 60)
-    onceBtn.Text = "一次性攻击（当前模式）"
-    onceBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    onceBtn.TextSize = 11
-    onceBtn.Font = Enum.Font.GothamBold
-    onceBtn.Parent = specialFrame
-    Instance.new("UICorner", onceBtn).CornerRadius = UDim.new(0, 4)
-
-    onceBtn.MouseButton1Click:Connect(doMadBlaster)
 end
 
 createSpecialContent()
@@ -387,7 +422,7 @@ local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(0.9, 0, 0, 30)
 statusLabel.Position = UDim2.new(0.05, 0, 0, 180)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "MadBlaster 新增「中心」模式"
+statusLabel.Text = "已添加 ClickDetector + 3个新技能"
 statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 statusLabel.TextSize = 11
 statusLabel.Font = Enum.Font.Gotham
@@ -414,10 +449,10 @@ local function updateLayout()
 
     if specialOpen then
         specialFrame.Position = UDim2.new(0.05, 0, 0, y)
-        specialFrame.Size = UDim2.new(0.9, 0, 0, 200)
+        specialFrame.Size = UDim2.new(0.9, 0, 0, 230)
         specialFrame.Visible = true
         specialBtn.Text = "▲ 独立技能"
-        y = y + 205
+        y = y + 235
     else
         specialFrame.Visible = false
         specialBtn.Text = "▼ 独立技能"
@@ -450,6 +485,7 @@ toggleBtn.MouseButton1Click:Connect(function()
         toggleBtn.Text = "状态：运行中"
         toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
 
+        -- 普通技能
         task.spawn(function()
             while isRunning do
                 for _, skill in ipairs(normalSkills) do
@@ -459,6 +495,7 @@ toggleBtn.MouseButton1Click:Connect(function()
             end
         end)
 
+        -- 独立技能
         task.spawn(function()
             while isRunning do
                 for _, skill in ipairs(specialSkills) do
@@ -471,12 +508,23 @@ toggleBtn.MouseButton1Click:Connect(function()
             end
         end)
 
+        -- MadBlaster
         task.spawn(function()
             while isRunning do
                 if madBlaster.enabled then
                     pcall(doMadBlaster)
                 end
                 task.wait(madBlaster.speed)
+            end
+        end)
+
+        -- ClickDetector
+        task.spawn(function()
+            while isRunning do
+                if clickDetector.enabled then
+                    pcall(fireClickDetectors)
+                end
+                task.wait(clickDetector.speed)
             end
         end)
     else
@@ -526,4 +574,4 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 updateLayout()
-print("脚本已加载：MadBlaster 新增「中心」模式")
+print("脚本已加载：新增 ClickDetector + DustFellBlaster + Axe + Cosmic Judgment")
