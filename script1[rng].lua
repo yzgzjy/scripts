@@ -1,4 +1,4 @@
--- 多技能自动攻击（修复UI滑动 + Delta兼容ClickDetector）
+-- 多技能自动攻击完整版（含 SFScythe）
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,6 +8,7 @@ local player = Players.LocalPlayer
 local AttackEvent = ReplicatedStorage:WaitForChild("AttackEvent")
 local SkillRemote = ReplicatedStorage:WaitForChild("SkillRemote")
 
+-- 普通技能
 local normalSkills = {
     {name = "BoneThrow", enabled = false, func = function() AttackEvent:FireServer("BoneThrow") end},
     {name = "dash_attack2", enabled = false, func = function() SkillRemote:FireServer("dash_attack2") end},
@@ -18,6 +19,7 @@ local normalSkills = {
     {name = "BoneWall (Normal)", enabled = false, func = function() AttackEvent:FireServer("BoneWall", "Normal") end}
 }
 
+-- 独立技能
 local specialSkills = {
     {name = "FarmerGB", enabled = false, speed = 0.1, func = function()
         AttackEvent:FireServer("FarmerGB")
@@ -36,13 +38,16 @@ local specialSkills = {
     end},
     {name = "Cosmic Judgment", enabled = false, speed = 0.1, func = function()
         AttackEvent:FireServer("Cosmic Judgment", "Normal")
+    end},
+    {name = "SFScythe", enabled = false, speed = 0.1, func = function()
+        AttackEvent:FireServer("SFScythe", "Slash", Vector3.new(-0.894703209400177, 0, -0.44666114449501038))
     end}
 }
 
 local madBlaster = {
     enabled = false,
     speed = 0.15,
-    mode = "first",
+    mode = "first", -- first / random / all / center
     centerPos = nil
 }
 
@@ -136,7 +141,7 @@ applySpeedBtn.Font = Enum.Font.Gotham
 applySpeedBtn.Parent = mainFrame
 Instance.new("UICorner", applySpeedBtn).CornerRadius = UDim.new(0, 5)
 
--- 普通技能按钮
+-- 普通技能
 local normalBtn = Instance.new("TextButton")
 normalBtn.Size = UDim2.new(0.9, 0, 0, 26)
 normalBtn.Position = UDim2.new(0.05, 0, 0, 70)
@@ -148,7 +153,6 @@ normalBtn.Font = Enum.Font.Gotham
 normalBtn.Parent = mainFrame
 Instance.new("UICorner", normalBtn).CornerRadius = UDim.new(0, 5)
 
--- 普通技能列表（固定高度 + 可滑动）
 local normalFrame = Instance.new("ScrollingFrame")
 normalFrame.Size = UDim2.new(0.9, 0, 0, 0)
 normalFrame.Position = UDim2.new(0.05, 0, 0, 98)
@@ -180,7 +184,7 @@ for i, skill in ipairs(normalSkills) do
     end)
 end
 
--- 独立技能按钮
+-- 独立技能
 local specialBtn = Instance.new("TextButton")
 specialBtn.Size = UDim2.new(0.9, 0, 0, 26)
 specialBtn.Position = UDim2.new(0.05, 0, 0, 105)
@@ -192,7 +196,6 @@ specialBtn.Font = Enum.Font.Gotham
 specialBtn.Parent = mainFrame
 Instance.new("UICorner", specialBtn).CornerRadius = UDim.new(0, 5)
 
--- 独立技能列表（固定高度 + 可滑动）
 local specialFrame = Instance.new("ScrollingFrame")
 specialFrame.Size = UDim2.new(0.9, 0, 0, 0)
 specialFrame.Position = UDim2.new(0.05, 0, 0, 133)
@@ -211,7 +214,6 @@ local function getPos(inst)
     return p and p.Position
 end
 
--- Delta 兼容的 ClickDetector 触发
 local function fireClickDetectors()
     local folder = Workspace:FindFirstChild("SpawnedSans")
     if not folder then return end
@@ -220,11 +222,9 @@ local function fireClickDetectors()
 
     for _, obj in ipairs(first:GetDescendants()) do
         if obj:IsA("ClickDetector") then
-            -- 优先使用 fireclickdetector（Delta 支持较好）
             pcall(function()
                 fireclickdetector(obj)
             end)
-            -- 备用方式
             pcall(function()
                 if firesignal then
                     firesignal(obj.MouseClick, player)
@@ -433,13 +433,12 @@ local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(0.9, 0, 0, 30)
 statusLabel.Position = UDim2.new(0.05, 0, 0, 180)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "UI已修复为固定高度可滑动"
+statusLabel.Text = "已包含 SFScythe"
 statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 statusLabel.TextSize = 11
 statusLabel.Font = Enum.Font.Gotham
 statusLabel.Parent = mainFrame
 
--- 布局更新（固定高度）
 local function updateLayout()
     local y = 70
     normalBtn.Position = UDim2.new(0.05, 0, 0, y)
@@ -447,7 +446,7 @@ local function updateLayout()
 
     if normalOpen then
         normalFrame.Position = UDim2.new(0.05, 0, 0, y)
-        normalFrame.Size = UDim2.new(0.9, 0, 0, 110)  -- 固定高度
+        normalFrame.Size = UDim2.new(0.9, 0, 0, 110)
         normalFrame.Visible = true
         normalBtn.Text = "▲ 普通技能"
         y = y + 115
@@ -462,7 +461,7 @@ local function updateLayout()
 
     if specialOpen then
         specialFrame.Position = UDim2.new(0.05, 0, 0, y)
-        specialFrame.Size = UDim2.new(0.9, 0, 0, 150)  -- 固定高度，可滑动
+        specialFrame.Size = UDim2.new(0.9, 0, 0, 150)
         specialFrame.Visible = true
         specialBtn.Text = "▲ 独立技能"
         y = y + 155
@@ -584,4 +583,4 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 updateLayout()
-print("脚本已修复：固定高度可滑动 + Delta兼容ClickDetector")
+print("完整多技能脚本已加载（含 SFScythe）")
