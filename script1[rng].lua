@@ -1,4 +1,4 @@
--- 多技能自动攻击（新增 ClickDetector + 3个技能）
+-- 多技能自动攻击（修复UI滑动 + Delta兼容ClickDetector）
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,7 +8,6 @@ local player = Players.LocalPlayer
 local AttackEvent = ReplicatedStorage:WaitForChild("AttackEvent")
 local SkillRemote = ReplicatedStorage:WaitForChild("SkillRemote")
 
--- 普通技能
 local normalSkills = {
     {name = "BoneThrow", enabled = false, func = function() AttackEvent:FireServer("BoneThrow") end},
     {name = "dash_attack2", enabled = false, func = function() SkillRemote:FireServer("dash_attack2") end},
@@ -19,7 +18,6 @@ local normalSkills = {
     {name = "BoneWall (Normal)", enabled = false, func = function() AttackEvent:FireServer("BoneWall", "Normal") end}
 }
 
--- 独立技能
 local specialSkills = {
     {name = "FarmerGB", enabled = false, speed = 0.1, func = function()
         AttackEvent:FireServer("FarmerGB")
@@ -44,7 +42,7 @@ local specialSkills = {
 local madBlaster = {
     enabled = false,
     speed = 0.15,
-    mode = "first", -- first / random / all / center
+    mode = "first",
     centerPos = nil
 }
 
@@ -67,8 +65,8 @@ screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 250, 0, 340)
-mainFrame.Position = UDim2.new(0.5, -125, 0.55, 0)
+mainFrame.Size = UDim2.new(0, 260, 0, 360)
+mainFrame.Position = UDim2.new(0.5, -130, 0.5, -180)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
@@ -138,6 +136,7 @@ applySpeedBtn.Font = Enum.Font.Gotham
 applySpeedBtn.Parent = mainFrame
 Instance.new("UICorner", applySpeedBtn).CornerRadius = UDim.new(0, 5)
 
+-- 普通技能按钮
 local normalBtn = Instance.new("TextButton")
 normalBtn.Size = UDim2.new(0.9, 0, 0, 26)
 normalBtn.Position = UDim2.new(0.05, 0, 0, 70)
@@ -149,12 +148,14 @@ normalBtn.Font = Enum.Font.Gotham
 normalBtn.Parent = mainFrame
 Instance.new("UICorner", normalBtn).CornerRadius = UDim.new(0, 5)
 
+-- 普通技能列表（固定高度 + 可滑动）
 local normalFrame = Instance.new("ScrollingFrame")
 normalFrame.Size = UDim2.new(0.9, 0, 0, 0)
 normalFrame.Position = UDim2.new(0.05, 0, 0, 98)
 normalFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 normalFrame.BorderSizePixel = 0
-normalFrame.ScrollBarThickness = 3
+normalFrame.ScrollBarThickness = 4
+normalFrame.CanvasSize = UDim2.new(0, 0, 0, #normalSkills * 26 + 8)
 normalFrame.Visible = false
 normalFrame.Parent = mainFrame
 Instance.new("UICorner", normalFrame).CornerRadius = UDim.new(0, 5)
@@ -162,8 +163,8 @@ Instance.new("UICorner", normalFrame).CornerRadius = UDim.new(0, 5)
 for i, skill in ipairs(normalSkills) do
     local s = skill
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -6, 0, 22)
-    btn.Position = UDim2.new(0, 3, 0, (i-1)*24 + 3)
+    btn.Size = UDim2.new(1, -8, 0, 22)
+    btn.Position = UDim2.new(0, 4, 0, (i-1)*26 + 4)
     btn.BackgroundColor3 = Color3.fromRGB(80, 50, 50)
     btn.Text = "[关] " .. s.name
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -178,8 +179,8 @@ for i, skill in ipairs(normalSkills) do
         btn.Text = (s.enabled and "[开] " or "[关] ") .. s.name
     end)
 end
-normalFrame.CanvasSize = UDim2.new(0, 0, 0, #normalSkills * 24 + 6)
 
+-- 独立技能按钮
 local specialBtn = Instance.new("TextButton")
 specialBtn.Size = UDim2.new(0.9, 0, 0, 26)
 specialBtn.Position = UDim2.new(0.05, 0, 0, 105)
@@ -191,11 +192,13 @@ specialBtn.Font = Enum.Font.Gotham
 specialBtn.Parent = mainFrame
 Instance.new("UICorner", specialBtn).CornerRadius = UDim.new(0, 5)
 
-local specialFrame = Instance.new("Frame")
+-- 独立技能列表（固定高度 + 可滑动）
+local specialFrame = Instance.new("ScrollingFrame")
 specialFrame.Size = UDim2.new(0.9, 0, 0, 0)
 specialFrame.Position = UDim2.new(0.05, 0, 0, 133)
 specialFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 specialFrame.BorderSizePixel = 0
+specialFrame.ScrollBarThickness = 4
 specialFrame.Visible = false
 specialFrame.Parent = mainFrame
 Instance.new("UICorner", specialFrame).CornerRadius = UDim.new(0, 5)
@@ -208,6 +211,7 @@ local function getPos(inst)
     return p and p.Position
 end
 
+-- Delta 兼容的 ClickDetector 触发
 local function fireClickDetectors()
     local folder = Workspace:FindFirstChild("SpawnedSans")
     if not folder then return end
@@ -216,8 +220,15 @@ local function fireClickDetectors()
 
     for _, obj in ipairs(first:GetDescendants()) do
         if obj:IsA("ClickDetector") then
+            -- 优先使用 fireclickdetector（Delta 支持较好）
             pcall(function()
                 fireclickdetector(obj)
+            end)
+            -- 备用方式
+            pcall(function()
+                if firesignal then
+                    firesignal(obj.MouseClick, player)
+                end
             end)
         end
     end
@@ -253,7 +264,6 @@ local function createSpecialContent()
 
     local y = 6
 
-    -- 独立技能列表
     for _, skill in ipairs(specialSkills) do
         local s = skill
         local btn = Instance.new("TextButton")
@@ -322,12 +332,12 @@ local function createSpecialContent()
     end)
     y = y + 28
 
-    -- MadBlaster 模式
+    -- MadBlaster
     local modeLabel = Instance.new("TextLabel")
     modeLabel.Size = UDim2.new(0.9, 0, 0, 16)
     modeLabel.Position = UDim2.new(0.05, 0, 0, y)
     modeLabel.BackgroundTransparency = 1
-    modeLabel.Text = "MadBlaster："
+    modeLabel.Text = "MadBlaster 模式："
     modeLabel.TextColor3 = Color3.fromRGB(220, 180, 180)
     modeLabel.TextSize = 11
     modeLabel.Font = Enum.Font.Gotham
@@ -359,9 +369,7 @@ local function createSpecialContent()
             if m.mode == "center" then
                 local char = player.Character
                 local root = char and char:FindFirstChild("HumanoidRootPart")
-                if root then
-                    madBlaster.centerPos = root.Position
-                end
+                if root then madBlaster.centerPos = root.Position end
             end
             createSpecialContent()
         end)
@@ -403,6 +411,9 @@ local function createSpecialContent()
         local n = tonumber(mSpeed.Text)
         if n and n > 0 then madBlaster.speed = n end
     end)
+
+    y = y + 30
+    specialFrame.CanvasSize = UDim2.new(0, 0, 0, y + 10)
 end
 
 createSpecialContent()
@@ -422,12 +433,13 @@ local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(0.9, 0, 0, 30)
 statusLabel.Position = UDim2.new(0.05, 0, 0, 180)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "已添加 ClickDetector + 3个新技能"
+statusLabel.Text = "UI已修复为固定高度可滑动"
 statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 statusLabel.TextSize = 11
 statusLabel.Font = Enum.Font.Gotham
 statusLabel.Parent = mainFrame
 
+-- 布局更新（固定高度）
 local function updateLayout()
     local y = 70
     normalBtn.Position = UDim2.new(0.05, 0, 0, y)
@@ -435,11 +447,12 @@ local function updateLayout()
 
     if normalOpen then
         normalFrame.Position = UDim2.new(0.05, 0, 0, y)
-        normalFrame.Size = UDim2.new(0.9, 0, 0, 120)
+        normalFrame.Size = UDim2.new(0.9, 0, 0, 110)  -- 固定高度
         normalFrame.Visible = true
         normalBtn.Text = "▲ 普通技能"
-        y = y + 125
+        y = y + 115
     else
+        normalFrame.Size = UDim2.new(0.9, 0, 0, 0)
         normalFrame.Visible = false
         normalBtn.Text = "▼ 普通技能"
     end
@@ -449,11 +462,12 @@ local function updateLayout()
 
     if specialOpen then
         specialFrame.Position = UDim2.new(0.05, 0, 0, y)
-        specialFrame.Size = UDim2.new(0.9, 0, 0, 230)
+        specialFrame.Size = UDim2.new(0.9, 0, 0, 150)  -- 固定高度，可滑动
         specialFrame.Visible = true
         specialBtn.Text = "▲ 独立技能"
-        y = y + 235
+        y = y + 155
     else
+        specialFrame.Size = UDim2.new(0.9, 0, 0, 0)
         specialFrame.Visible = false
         specialBtn.Text = "▼ 独立技能"
     end
@@ -461,7 +475,7 @@ local function updateLayout()
     toggleBtn.Position = UDim2.new(0.05, 0, 0, y)
     y = y + 42
     statusLabel.Position = UDim2.new(0.05, 0, 0, y)
-    mainFrame.Size = UDim2.new(0, 250, 0, y + 40)
+    mainFrame.Size = UDim2.new(0, 260, 0, y + 45)
 end
 
 normalBtn.MouseButton1Click:Connect(function()
@@ -485,7 +499,6 @@ toggleBtn.MouseButton1Click:Connect(function()
         toggleBtn.Text = "状态：运行中"
         toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
 
-        -- 普通技能
         task.spawn(function()
             while isRunning do
                 for _, skill in ipairs(normalSkills) do
@@ -495,7 +508,6 @@ toggleBtn.MouseButton1Click:Connect(function()
             end
         end)
 
-        -- 独立技能
         task.spawn(function()
             while isRunning do
                 for _, skill in ipairs(specialSkills) do
@@ -508,7 +520,6 @@ toggleBtn.MouseButton1Click:Connect(function()
             end
         end)
 
-        -- MadBlaster
         task.spawn(function()
             while isRunning do
                 if madBlaster.enabled then
@@ -518,7 +529,6 @@ toggleBtn.MouseButton1Click:Connect(function()
             end
         end)
 
-        -- ClickDetector
         task.spawn(function()
             while isRunning do
                 if clickDetector.enabled then
@@ -536,7 +546,7 @@ end)
 minimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
     if isMinimized then
-        mainFrame.Size = UDim2.new(0, 250, 0, 30)
+        mainFrame.Size = UDim2.new(0, 260, 0, 30)
         for _, c in ipairs(mainFrame:GetChildren()) do
             if c ~= titleBar and c:IsA("GuiObject") then c.Visible = false end
         end
@@ -574,4 +584,4 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 updateLayout()
-print("脚本已加载：新增 ClickDetector + DustFellBlaster + Axe + Cosmic Judgment")
+print("脚本已修复：固定高度可滑动 + Delta兼容ClickDetector")
