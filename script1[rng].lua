@@ -1,4 +1,4 @@
--- 多技能自动攻击完整版（含 SFScythe）
+-- 多技能自动攻击完整版（SFScythe 已对齐 MadBlaster）
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,7 +19,7 @@ local normalSkills = {
     {name = "BoneWall (Normal)", enabled = false, func = function() AttackEvent:FireServer("BoneWall", "Normal") end}
 }
 
--- 独立技能
+-- 独立技能（普通循环）
 local specialSkills = {
     {name = "FarmerGB", enabled = false, speed = 0.1, func = function()
         AttackEvent:FireServer("FarmerGB")
@@ -38,13 +38,19 @@ local specialSkills = {
     end},
     {name = "Cosmic Judgment", enabled = false, speed = 0.1, func = function()
         AttackEvent:FireServer("Cosmic Judgment", "Normal")
-    end},
-    {name = "SFScythe", enabled = false, speed = 0.1, func = function()
-        AttackEvent:FireServer("SFScythe", "Slash", Vector3.new(-0.894703209400177, 0, -0.44666114449501038))
     end}
 }
 
+-- MadBlaster
 local madBlaster = {
+    enabled = false,
+    speed = 0.15,
+    mode = "first", -- first / random / all / center
+    centerPos = nil
+}
+
+-- SFScythe（对齐 MadBlaster）
+local sfScythe = {
     enabled = false,
     speed = 0.15,
     mode = "first", -- first / random / all / center
@@ -70,8 +76,8 @@ screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 260, 0, 360)
-mainFrame.Position = UDim2.new(0.5, -130, 0.5, -180)
+mainFrame.Size = UDim2.new(0, 270, 0, 380)
+mainFrame.Position = UDim2.new(0.5, -135, 0.5, -190)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
@@ -214,22 +220,47 @@ local function getPos(inst)
     return p and p.Position
 end
 
-local function fireClickDetectors()
+local function getSansList()
     local folder = Workspace:FindFirstChild("SpawnedSans")
-    if not folder then return end
-    local first = folder:GetChildren()[1]
-    if not first then return end
+    return folder and folder:GetChildren() or {}
+end
+
+local function fireClickDetectors()
+    local list = getSansList()
+    if #list == 0 then return end
+    local first = list[1]
 
     for _, obj in ipairs(first:GetDescendants()) do
         if obj:IsA("ClickDetector") then
+            pcall(function() fireclickdetector(obj) end)
             pcall(function()
-                fireclickdetector(obj)
+                if firesignal then firesignal(obj.MouseClick, player) end
             end)
-            pcall(function()
-                if firesignal then
-                    firesignal(obj.MouseClick, player)
-                end
-            end)
+        end
+    end
+end
+
+local function doTargetedAttack(skillName, mode, centerPos)
+    if mode == "center" then
+        if centerPos then
+            AttackEvent:FireServer(skillName, "Slash", centerPos)
+        end
+        return
+    end
+
+    local list = getSansList()
+    if #list == 0 then return end
+
+    if mode == "first" then
+        local pos = getPos(list[1])
+        if pos then AttackEvent:FireServer(skillName, "Slash", pos) end
+    elseif mode == "random" then
+        local pos = getPos(list[math.random(1, #list)])
+        if pos then AttackEvent:FireServer(skillName, "Slash", pos) end
+    elseif mode == "all" then
+        for _, inst in ipairs(list) do
+            local pos = getPos(inst)
+            if pos then AttackEvent:FireServer(skillName, "Slash", pos) end
         end
     end
 end
@@ -242,8 +273,7 @@ local function doMadBlaster()
         return
     end
 
-    local folder = Workspace:FindFirstChild("SpawnedSans")
-    local list = folder and folder:GetChildren() or {}
+    local list = getSansList()
     if #list == 0 then return end
 
     if madBlaster.mode == "first" then
@@ -258,12 +288,17 @@ local function doMadBlaster()
     end
 end
 
+local function doSFScythe()
+    doTargetedAttack("SFScythe", sfScythe.mode, sfScythe.centerPos)
+end
+
 local function createSpecialContent()
     specialFrame:ClearAllChildren()
     Instance.new("UICorner", specialFrame).CornerRadius = UDim.new(0, 5)
 
     local y = 6
 
+    -- 普通独立技能
     for _, skill in ipairs(specialSkills) do
         local s = skill
         local btn = Instance.new("TextButton")
@@ -330,89 +365,111 @@ local function createSpecialContent()
         local n = tonumber(cdSpeed.Text)
         if n and n > 0 then clickDetector.speed = n end
     end)
-    y = y + 28
+    y = y + 30
 
-    -- MadBlaster
-    local modeLabel = Instance.new("TextLabel")
-    modeLabel.Size = UDim2.new(0.9, 0, 0, 16)
-    modeLabel.Position = UDim2.new(0.05, 0, 0, y)
-    modeLabel.BackgroundTransparency = 1
-    modeLabel.Text = "MadBlaster 模式："
-    modeLabel.TextColor3 = Color3.fromRGB(220, 180, 180)
-    modeLabel.TextSize = 11
-    modeLabel.Font = Enum.Font.Gotham
-    modeLabel.TextXAlignment = Enum.TextXAlignment.Left
-    modeLabel.Parent = specialFrame
-    y = y + 18
+    -- MadBlaster 区域
+    local function createTargetSection(titleText, data, doFunc, yStart)
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(0.9, 0, 0, 16)
+        label.Position = UDim2.new(0.05, 0, 0, yStart)
+        label.BackgroundTransparency = 1
+        label.Text = titleText
+        label.TextColor3 = Color3.fromRGB(220, 180, 180)
+        label.TextSize = 11
+        label.Font = Enum.Font.GothamBold
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = specialFrame
 
-    local modes = {
-        {text = "第一个", mode = "first"},
-        {text = "随机", mode = "random"},
-        {text = "全部", mode = "all"},
-        {text = "中心", mode = "center"}
-    }
+        local cy = yStart + 18
+        local modes = {
+            {text = "第一个", mode = "first"},
+            {text = "随机", mode = "random"},
+            {text = "全部", mode = "all"},
+            {text = "中心", mode = "center"}
+        }
 
-    for i, m in ipairs(modes) do
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0.22, 0, 0, 20)
-        btn.Position = UDim2.new(0.03 + (i-1)*0.24, 0, 0, y)
-        btn.BackgroundColor3 = madBlaster.mode == m.mode and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
-        btn.Text = m.text
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.TextSize = 10
-        btn.Font = Enum.Font.Gotham
-        btn.Parent = specialFrame
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+        for i, m in ipairs(modes) do
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(0.22, 0, 0, 20)
+            btn.Position = UDim2.new(0.03 + (i-1)*0.24, 0, 0, cy)
+            btn.BackgroundColor3 = data.mode == m.mode and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
+            btn.Text = m.text
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.TextSize = 10
+            btn.Font = Enum.Font.Gotham
+            btn.Parent = specialFrame
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
 
-        btn.MouseButton1Click:Connect(function()
-            madBlaster.mode = m.mode
-            if m.mode == "center" then
+            btn.MouseButton1Click:Connect(function()
+                data.mode = m.mode
+                if m.mode == "center" then
+                    local char = player.Character
+                    local root = char and char:FindFirstChild("HumanoidRootPart")
+                    if root then data.centerPos = root.Position end
+                end
+                createSpecialContent()
+            end)
+        end
+        cy = cy + 26
+
+        local enableBtn = Instance.new("TextButton")
+        enableBtn.Size = UDim2.new(0.42, 0, 0, 22)
+        enableBtn.Position = UDim2.new(0.03, 0, 0, cy)
+        enableBtn.BackgroundColor3 = data.enabled and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
+        enableBtn.Text = (data.enabled and "[开] " or "[关] ") .. "循环"
+        enableBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        enableBtn.TextSize = 10
+        enableBtn.Font = Enum.Font.Gotham
+        enableBtn.Parent = specialFrame
+        Instance.new("UICorner", enableBtn).CornerRadius = UDim.new(0, 4)
+
+        local speedBox = Instance.new("TextBox")
+        speedBox.Size = UDim2.new(0.2, 0, 0, 22)
+        speedBox.Position = UDim2.new(0.48, 0, 0, cy)
+        speedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+        speedBox.Text = tostring(data.speed)
+        speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+        speedBox.TextSize = 10
+        speedBox.Font = Enum.Font.Gotham
+        speedBox.Parent = specialFrame
+        Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0, 4)
+
+        local onceBtn = Instance.new("TextButton")
+        onceBtn.Size = UDim2.new(0.25, 0, 0, 22)
+        onceBtn.Position = UDim2.new(0.71, 0, 0, cy)
+        onceBtn.BackgroundColor3 = Color3.fromRGB(120, 60, 60)
+        onceBtn.Text = "一次"
+        onceBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        onceBtn.TextSize = 10
+        onceBtn.Font = Enum.Font.GothamBold
+        onceBtn.Parent = specialFrame
+        Instance.new("UICorner", onceBtn).CornerRadius = UDim.new(0, 4)
+
+        enableBtn.MouseButton1Click:Connect(function()
+            data.enabled = not data.enabled
+            if data.enabled and data.mode == "center" and not data.centerPos then
                 local char = player.Character
                 local root = char and char:FindFirstChild("HumanoidRootPart")
-                if root then madBlaster.centerPos = root.Position end
+                if root then data.centerPos = root.Position end
             end
             createSpecialContent()
         end)
+
+        speedBox.FocusLost:Connect(function()
+            local n = tonumber(speedBox.Text)
+            if n and n > 0 then data.speed = n end
+        end)
+
+        onceBtn.MouseButton1Click:Connect(function()
+            pcall(doFunc)
+        end)
+
+        return cy + 30
     end
-    y = y + 26
 
-    local mBtn = Instance.new("TextButton")
-    mBtn.Size = UDim2.new(0.55, 0, 0, 22)
-    mBtn.Position = UDim2.new(0.03, 0, 0, y)
-    mBtn.BackgroundColor3 = madBlaster.enabled and Color3.fromRGB(40, 140, 70) or Color3.fromRGB(80, 50, 50)
-    mBtn.Text = (madBlaster.enabled and "[开] " or "[关] ") .. "MadBlaster"
-    mBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    mBtn.TextSize = 10
-    mBtn.Font = Enum.Font.Gotham
-    mBtn.Parent = specialFrame
-    Instance.new("UICorner", mBtn).CornerRadius = UDim.new(0, 4)
+    y = createTargetSection("MadBlaster：", madBlaster, doMadBlaster, y)
+    y = createTargetSection("SFScythe：", sfScythe, doSFScythe, y)
 
-    local mSpeed = Instance.new("TextBox")
-    mSpeed.Size = UDim2.new(0.35, 0, 0, 22)
-    mSpeed.Position = UDim2.new(0.62, 0, 0, y)
-    mSpeed.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-    mSpeed.Text = tostring(madBlaster.speed)
-    mSpeed.TextColor3 = Color3.fromRGB(255, 255, 255)
-    mSpeed.TextSize = 10
-    mSpeed.Font = Enum.Font.Gotham
-    mSpeed.Parent = specialFrame
-    Instance.new("UICorner", mSpeed).CornerRadius = UDim.new(0, 4)
-
-    mBtn.MouseButton1Click:Connect(function()
-        madBlaster.enabled = not madBlaster.enabled
-        if madBlaster.enabled and madBlaster.mode == "center" and not madBlaster.centerPos then
-            local char = player.Character
-            local root = char and char:FindFirstChild("HumanoidRootPart")
-            if root then madBlaster.centerPos = root.Position end
-        end
-        createSpecialContent()
-    end)
-    mSpeed.FocusLost:Connect(function()
-        local n = tonumber(mSpeed.Text)
-        if n and n > 0 then madBlaster.speed = n end
-    end)
-
-    y = y + 30
     specialFrame.CanvasSize = UDim2.new(0, 0, 0, y + 10)
 end
 
@@ -433,7 +490,7 @@ local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(0.9, 0, 0, 30)
 statusLabel.Position = UDim2.new(0.05, 0, 0, 180)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "已包含 SFScythe"
+statusLabel.Text = "SFScythe 已对齐 MadBlaster（4种索敌+2种触发）"
 statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 statusLabel.TextSize = 11
 statusLabel.Font = Enum.Font.Gotham
@@ -461,10 +518,10 @@ local function updateLayout()
 
     if specialOpen then
         specialFrame.Position = UDim2.new(0.05, 0, 0, y)
-        specialFrame.Size = UDim2.new(0.9, 0, 0, 150)
+        specialFrame.Size = UDim2.new(0.9, 0, 0, 180)
         specialFrame.Visible = true
         specialBtn.Text = "▲ 独立技能"
-        y = y + 155
+        y = y + 185
     else
         specialFrame.Size = UDim2.new(0.9, 0, 0, 0)
         specialFrame.Visible = false
@@ -474,7 +531,7 @@ local function updateLayout()
     toggleBtn.Position = UDim2.new(0.05, 0, 0, y)
     y = y + 42
     statusLabel.Position = UDim2.new(0.05, 0, 0, y)
-    mainFrame.Size = UDim2.new(0, 260, 0, y + 45)
+    mainFrame.Size = UDim2.new(0, 270, 0, y + 45)
 end
 
 normalBtn.MouseButton1Click:Connect(function()
@@ -521,18 +578,21 @@ toggleBtn.MouseButton1Click:Connect(function()
 
         task.spawn(function()
             while isRunning do
-                if madBlaster.enabled then
-                    pcall(doMadBlaster)
-                end
+                if madBlaster.enabled then pcall(doMadBlaster) end
                 task.wait(madBlaster.speed)
             end
         end)
 
         task.spawn(function()
             while isRunning do
-                if clickDetector.enabled then
-                    pcall(fireClickDetectors)
-                end
+                if sfScythe.enabled then pcall(doSFScythe) end
+                task.wait(sfScythe.speed)
+            end
+        end)
+
+        task.spawn(function()
+            while isRunning do
+                if clickDetector.enabled then pcall(fireClickDetectors) end
                 task.wait(clickDetector.speed)
             end
         end)
@@ -545,7 +605,7 @@ end)
 minimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
     if isMinimized then
-        mainFrame.Size = UDim2.new(0, 260, 0, 30)
+        mainFrame.Size = UDim2.new(0, 270, 0, 30)
         for _, c in ipairs(mainFrame:GetChildren()) do
             if c ~= titleBar and c:IsA("GuiObject") then c.Visible = false end
         end
@@ -583,4 +643,4 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 updateLayout()
-print("完整多技能脚本已加载（含 SFScythe）")
+print("完整脚本已加载：SFScythe 已对齐 MadBlaster（4种索敌 + 循环/一次性）")
